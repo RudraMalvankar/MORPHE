@@ -1,7 +1,8 @@
-import os
-from typing import List, Union
-from pydantic import Field, AnyHttpUrl, field_validator
+from typing import List
+
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "MORPHE Document Intelligence Platform"

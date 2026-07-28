@@ -1,8 +1,11 @@
 from typing import AsyncGenerator
-from sqlalchemy.ext.asyncio import AsyncSession
+
 from redis.asyncio import Redis
-from app.db.session import get_db
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.core.redis import get_redis_client
+from app.db.session import get_db
+
 
 async def db_dependency() -> AsyncGenerator[AsyncSession, None]:
     async for session in get_db():

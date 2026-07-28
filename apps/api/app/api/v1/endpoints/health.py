@@ -1,6 +1,7 @@
+import datetime
+
 from fastapi import APIRouter
 from pydantic import BaseModel
-import datetime
 
 router = APIRouter()
 
