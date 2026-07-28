@@ -1,7 +1,10 @@
 import datetime
-from typing import Dict, Any, Callable, List
+from typing import Callable, Dict, List
+
 from pydantic import BaseModel, Field
+
 from app.core.logging import logger
+
 
 class DomainEvent(BaseModel):
     event_id: str
