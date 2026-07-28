@@ -6,11 +6,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.events import ValidationCompletedEvent, domain_event_bus
 from app.db.models import ValidationReport
+from app.db.repository import BaseRepository
 
 
-class ValidationReportRepository:
+class ValidationReportRepository(BaseRepository[ValidationReport]):
     def __init__(self, db: AsyncSession):
-        self.db = db
+        super().__init__(ValidationReport, db)
 
     async def get_by_version(self, version_id: uuid.UUID) -> Optional[ValidationReport]:
         result = await self.db.execute(

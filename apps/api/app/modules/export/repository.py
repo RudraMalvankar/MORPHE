@@ -1,21 +1,16 @@
 import uuid
-from typing import List, Optional
+from typing import List
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import ExportArtifact
+from app.db.repository import BaseRepository
 
 
-class ExportArtifactRepository:
+class ExportArtifactRepository(BaseRepository[ExportArtifact]):
     def __init__(self, db: AsyncSession):
-        self.db = db
-
-    async def get_by_id(self, artifact_id: uuid.UUID) -> Optional[ExportArtifact]:
-        result = await self.db.execute(
-            select(ExportArtifact).where(ExportArtifact.id == artifact_id)
-        )
-        return result.scalar_one_or_none()
+        super().__init__(ExportArtifact, db)
 
     async def list_by_version(self, version_id: uuid.UUID) -> List[ExportArtifact]:
         result = await self.db.execute(

@@ -35,6 +35,47 @@ class ExportRequestedEvent(DomainEvent):
     format_type: str
 
 
+# ==========================================
+# PART 6 - KNOWLEDGE EVENTS
+# ==========================================
+
+
+class KnowledgeBaseEntryCreatedEvent(DomainEvent):
+    category: str
+    key: str
+
+
+class KnowledgeBaseUpdatedEvent(DomainEvent):
+    category: str
+    key: str
+
+
+class DomainProfileCreatedEvent(DomainEvent):
+    key: str
+    display_name: str
+
+
+class DomainProfileUpdatedEvent(DomainEvent):
+    key: str
+    display_name: str
+
+
+class PublisherAddedEvent(DomainEvent):
+    key: str
+    name: str
+
+
+class JournalAddedEvent(DomainEvent):
+    publisher_key: str
+    key: str
+    name: str
+
+
+class CitationStyleAddedEvent(DomainEvent):
+    key: str
+    name: str
+
+
 EventHandler = Callable[[DomainEvent], None]
 
 

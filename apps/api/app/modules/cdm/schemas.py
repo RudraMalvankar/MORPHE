@@ -80,5 +80,28 @@ class CanonicalDocument(BaseModel):
     metadata: Dict[str, Any] = Field(default_factory=dict)
     created_at: datetime.datetime = Field(default_factory=datetime.datetime.utcnow)
 
+    # ==========================================
+    # PART 3 - UNIVERSAL RESEARCH PLATFORM METADATA
+    # ==========================================
+    research_domain: Optional[str] = "general"
+    research_subdomain: Optional[str] = None
+    research_type: Optional[str] = None
+    publication_type: Optional[str] = None
+    target_journal: Optional[str] = None
+    target_publisher: Optional[str] = None
+    citation_style: Optional[str] = None
+    document_language: Optional[str] = "en"
+    submission_status: Optional[str] = "draft"
+    compliance_score: Optional[int] = None
+
+    version_metadata: Dict[str, Any] = Field(default_factory=dict)
+    domain_profile_reference: Optional[str] = None
+    knowledge_base_reference: Dict[str, Any] = Field(default_factory=dict)
+
+    review_status: Optional[str] = None
+    review_notes: Optional[str] = None
+    editorial_metadata: Dict[str, Any] = Field(default_factory=dict)
+    publication_metadata: Dict[str, Any] = Field(default_factory=dict)
+
 
 DocumentSection.model_rebuild()

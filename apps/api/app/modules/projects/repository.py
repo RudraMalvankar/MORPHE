@@ -6,11 +6,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.events import DocumentIngestedEvent, domain_event_bus
 from app.db.models import OriginalInput, PaperVersion, Project
+from app.db.repository import BaseRepository
 
 
-class ProjectRepository:
+class ProjectRepository(BaseRepository[Project]):
     def __init__(self, db: AsyncSession):
-        self.db = db
+        super().__init__(Project, db)
 
     async def get_by_id(self, project_id: uuid.UUID) -> Optional[Project]:
         result = await self.db.execute(
@@ -52,13 +53,9 @@ class ProjectRepository:
         return False
 
 
-class PaperVersionRepository:
+class PaperVersionRepository(BaseRepository[PaperVersion]):
     def __init__(self, db: AsyncSession):
-        self.db = db
-
-    async def get_by_id(self, version_id: uuid.UUID) -> Optional[PaperVersion]:
-        result = await self.db.execute(select(PaperVersion).where(PaperVersion.id == version_id))
-        return result.scalar_one_or_none()
+        super().__init__(PaperVersion, db)
 
     async def list_by_project(self, project_id: uuid.UUID) -> List[PaperVersion]:
         result = await self.db.execute(

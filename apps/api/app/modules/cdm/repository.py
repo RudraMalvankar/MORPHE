@@ -6,12 +6,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.events import CDMUpdatedEvent, domain_event_bus
 from app.db.models import CanonicalDocumentDb
+from app.db.repository import BaseRepository
 from app.modules.cdm.schemas import CanonicalDocument
 
 
-class CanonicalDocumentRepository:
+class CanonicalDocumentRepository(BaseRepository[CanonicalDocumentDb]):
     def __init__(self, db: AsyncSession):
-        self.db = db
+        super().__init__(CanonicalDocumentDb, db)
 
     async def get_by_version(self, version_id: uuid.UUID) -> Optional[CanonicalDocument]:
         result = await self.db.execute(
