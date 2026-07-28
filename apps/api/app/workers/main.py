@@ -7,8 +7,10 @@ from app.core.logging import logger
 async def startup(ctx: dict):
     logger.info("Initializing ARQ background task worker...")
 
+
 async def shutdown(ctx: dict):
     logger.info("Shutting down ARQ background worker...")
+
 
 class WorkerSettings:
     functions: List[Any] = []

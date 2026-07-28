@@ -5,11 +5,13 @@ from pydantic import BaseModel
 
 router = APIRouter()
 
+
 class HealthResponse(BaseModel):
     status: str
     version: str
     environment: str
     timestamp: datetime.datetime
+
 
 @router.get("/health", response_model=HealthResponse, tags=["Health"])
 async def health_check():
@@ -17,5 +19,5 @@ async def health_check():
         status="ok",
         version="1.0.0",
         environment="development",
-        timestamp=datetime.datetime.utcnow()
+        timestamp=datetime.datetime.utcnow(),
     )

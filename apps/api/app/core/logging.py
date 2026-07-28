@@ -17,4 +17,5 @@ def setup_logging():
     logger.info(f"Logging initialized at level {settings.LOG_LEVEL}")
     return logger
 
+
 logger = setup_logging()

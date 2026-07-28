@@ -10,19 +10,23 @@ class DomainEvent(BaseModel):
     event_id: str
     timestamp: datetime.datetime = Field(default_factory=datetime.datetime.utcnow)
 
+
 class DocumentIngestedEvent(DomainEvent):
     project_id: str
     version_id: str
     source_type: str
 
+
 class CDMUpdatedEvent(DomainEvent):
     project_id: str
     version_id: str
+
 
 class ValidationCompletedEvent(DomainEvent):
     project_id: str
     version_id: str
     compliance_score: int
+
 
 class ExportRequestedEvent(DomainEvent):
     project_id: str
@@ -30,7 +34,9 @@ class ExportRequestedEvent(DomainEvent):
     publisher_key: str
     format_type: str
 
+
 EventHandler = Callable[[DomainEvent], None]
+
 
 class EventBus:
     def __init__(self):
@@ -51,5 +57,6 @@ class EventBus:
                     handler(event)
                 except Exception as e:
                     logger.error(f"Error executing event handler {handler.__name__}: {e}")
+
 
 domain_event_bus = EventBus()

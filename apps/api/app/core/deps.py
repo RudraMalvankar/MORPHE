@@ -11,5 +11,6 @@ async def db_dependency() -> AsyncGenerator[AsyncSession, None]:
     async for session in get_db():
         yield session
 
+
 async def redis_dependency() -> Redis:
     return await get_redis_client()
