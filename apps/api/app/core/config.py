@@ -38,6 +38,12 @@ class Settings(BaseSettings):
     CDM_STORAGE_DIR: str = "storage_data/cdm"
     ARTIFACTS_STORAGE_DIR: str = "storage_data/artifacts"
 
+    # JWT Authentication settings (Part 11)
+    SECRET_KEY: str = "super_secure_morphe_secret_key_development_only_1234567890"
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+
     model_config = SettingsConfigDict(
         env_file=".env", env_file_encoding="utf-8", case_sensitive=True, extra="ignore"
     )

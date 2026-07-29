@@ -47,6 +47,7 @@ class User(Base, TimestampMixin, SoftDeleteMixin):
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     full_name: Mapped[str] = mapped_column(String(255), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    role: Mapped[str] = mapped_column(String(50), default="researcher", nullable=False)
 
     projects: Mapped[List["Project"]] = relationship(
         "Project", back_populates="user", cascade="all, delete-orphan"
@@ -365,3 +366,15 @@ class KnowledgeBaseEntry(Base, TimestampMixin):
     )  # "publishers", "journals"
     key: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
     value: Mapped[dict] = mapped_column(JSON, nullable=False)
+
+
+class RefreshTokenDb(Base, TimestampMixin):
+    __tablename__ = "refresh_tokens"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    token: Mapped[str] = mapped_column(String(512), unique=True, nullable=False, index=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    is_revoked: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
