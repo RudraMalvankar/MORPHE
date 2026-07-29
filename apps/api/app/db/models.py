@@ -378,3 +378,35 @@ class RefreshTokenDb(Base, TimestampMixin):
     token: Mapped[str] = mapped_column(String(512), unique=True, nullable=False, index=True)
     expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     is_revoked: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+
+
+class StorageObject(Base, TimestampMixin, SoftDeleteMixin):
+    __tablename__ = "storage_objects"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    version_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("paper_versions.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    owner_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+
+    original_filename: Mapped[str] = mapped_column(String(255), nullable=False)
+    storage_filename: Mapped[str] = mapped_column(String(255), nullable=False)
+    checksum: Mapped[str] = mapped_column(String(64), nullable=False)  # SHA-256
+    file_size: Mapped[int] = mapped_column(Integer, nullable=False)
+    mime_type: Mapped[str] = mapped_column(String(100), nullable=False)
+    storage_provider: Mapped[str] = mapped_column(String(50), default="local", nullable=False)
+    storage_path: Mapped[str] = mapped_column(String(1024), nullable=False)
+    status: Mapped[str] = mapped_column(
+        String(50), default="active", nullable=False
+    )  # active, deleted, archived

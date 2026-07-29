@@ -116,6 +116,51 @@ class TokenRefreshedEvent(DomainEvent):
     user_id: str
 
 
+# ==========================================
+# PART 8 - STORAGE EVENTS
+# ==========================================
+
+
+class FileUploadedEvent(DomainEvent):
+    file_id: str
+    project_id: str
+    filename: str
+
+
+class FileDownloadedEvent(DomainEvent):
+    file_id: str
+    user_id: str
+
+
+class FileDeletedEvent(DomainEvent):
+    file_id: str
+    project_id: str
+
+
+class VersionCreatedEvent(DomainEvent):
+    project_id: str
+    version_id: str
+    version_number: int
+
+
+class VersionRestoredEvent(DomainEvent):
+    project_id: str
+    version_id: str
+    restored_to_version_id: str
+
+
+class ArtifactStoredEvent(DomainEvent):
+    project_id: str
+    version_id: str
+    artifact_id: str
+    publisher_key: str
+
+
+class StorageProviderChangedEvent(DomainEvent):
+    old_provider: str
+    new_provider: str
+
+
 EventHandler = Callable[[DomainEvent], None]
 
 
