@@ -76,6 +76,46 @@ class CitationStyleAddedEvent(DomainEvent):
     name: str
 
 
+# ==========================================
+# PART 7 - IAM EVENTS
+# ==========================================
+
+
+class UserRegisteredEvent(DomainEvent):
+    user_id: str
+    email: str
+
+
+class UserLoggedInEvent(DomainEvent):
+    user_id: str
+    email: str
+
+
+class UserLoggedOutEvent(DomainEvent):
+    user_id: str
+
+
+class PasswordChangedEvent(DomainEvent):
+    user_id: str
+
+
+class UserUpdatedEvent(DomainEvent):
+    user_id: str
+
+
+class UserDeletedEvent(DomainEvent):
+    user_id: str
+
+
+class RoleChangedEvent(DomainEvent):
+    user_id: str
+    new_role: str
+
+
+class TokenRefreshedEvent(DomainEvent):
+    user_id: str
+
+
 EventHandler = Callable[[DomainEvent], None]
 
 
