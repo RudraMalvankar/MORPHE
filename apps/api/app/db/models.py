@@ -410,3 +410,32 @@ class StorageObject(Base, TimestampMixin, SoftDeleteMixin):
     status: Mapped[str] = mapped_column(
         String(50), default="active", nullable=False
     )  # active, deleted, archived
+
+
+class IngestionJobDb(Base, TimestampMixin):
+    __tablename__ = "ingestion_jobs"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    version_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("paper_versions.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    file_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("storage_objects.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    status: Mapped[str] = mapped_column(
+        String(50), default="queued", nullable=False, index=True
+    )  # queued, running, completed, failed, cancelled
+    progress: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    error_message: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)

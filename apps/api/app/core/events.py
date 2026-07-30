@@ -161,6 +161,42 @@ class StorageProviderChangedEvent(DomainEvent):
     new_provider: str
 
 
+# ==========================================
+# PART 14 - INGESTION EVENTS
+# ==========================================
+
+
+class DocumentUploadedEvent(DomainEvent):
+    project_id: str
+    file_id: str
+
+
+class DocumentDetectedEvent(DomainEvent):
+    project_id: str
+    file_id: str
+    mime_type: str
+
+
+class DocumentParsedEvent(DomainEvent):
+    project_id: str
+    version_id: str
+
+
+class MetadataExtractedEvent(DomainEvent):
+    project_id: str
+    version_id: str
+
+
+class CDMCreatedEvent(DomainEvent):
+    project_id: str
+    version_id: str
+
+
+class ParserFailedEvent(DomainEvent):
+    job_id: str
+    error: str
+
+
 EventHandler = Callable[[DomainEvent], None]
 
 
