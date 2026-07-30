@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from typing import List, Optional
 
-from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, String
+from sqlalchemy import JSON, Boolean, DateTime, Float, ForeignKey, Integer, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -437,5 +437,127 @@ class IngestionJobDb(Base, TimestampMixin):
     status: Mapped[str] = mapped_column(
         String(50), default="queued", nullable=False, index=True
     )  # queued, running, completed, failed, cancelled
+    progress: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    error_message: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
+
+
+class NlpDocumentDb(Base, TimestampMixin):
+    __tablename__ = "nlp_documents"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    version_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("paper_versions.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    language: Mapped[str] = mapped_column(String(50), default="en", nullable=False)
+    language_confidence: Mapped[float] = mapped_column(Float, default=1.0, nullable=False)
+    processed_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, nullable=False
+    )
+
+
+class NlpEntityDb(Base, TimestampMixin):
+    __tablename__ = "nlp_entities"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    document_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("nlp_documents.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    entity_text: Mapped[str] = mapped_column(String(512), nullable=False)
+    entity_type: Mapped[str] = mapped_column(String(100), nullable=False)
+    confidence: Mapped[float] = mapped_column(Float, default=1.0, nullable=False)
+
+
+class NlpKeywordDb(Base, TimestampMixin):
+    __tablename__ = "nlp_keywords"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    document_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("nlp_documents.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    keyword: Mapped[str] = mapped_column(String(255), nullable=False)
+    score: Mapped[float] = mapped_column(Float, nullable=False)
+
+
+class NlpStatisticsDb(Base, TimestampMixin):
+    __tablename__ = "nlp_statistics"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    document_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("nlp_documents.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    word_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    sentence_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    paragraph_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    section_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    avg_sentence_length: Mapped[float] = mapped_column(Float, nullable=False)
+    lexical_diversity: Mapped[float] = mapped_column(Float, nullable=False)
+    vocabulary_size: Mapped[int] = mapped_column(Integer, nullable=False)
+    reading_time_mins: Mapped[float] = mapped_column(Float, nullable=False)
+
+
+class NlpCitationMapDb(Base, TimestampMixin):
+    __tablename__ = "nlp_citation_maps"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    document_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("nlp_documents.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    citation_marker: Mapped[str] = mapped_column(String(100), nullable=False)
+    target_ref_id: Mapped[str] = mapped_column(String(100), nullable=False)
+
+
+class NlpSectionClassificationDb(Base, TimestampMixin):
+    __tablename__ = "nlp_section_classifications"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    document_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("nlp_documents.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    section_title: Mapped[str] = mapped_column(String(255), nullable=False)
+    classified_type: Mapped[str] = mapped_column(String(100), nullable=False)
+    confidence: Mapped[float] = mapped_column(Float, default=1.0, nullable=False)
+
+
+class NlpJobDb(Base, TimestampMixin):
+    __tablename__ = "nlp_jobs"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    version_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("paper_versions.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    status: Mapped[str] = mapped_column(String(50), default="queued", nullable=False, index=True)
     progress: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     error_message: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)

@@ -197,6 +197,67 @@ class ParserFailedEvent(DomainEvent):
     error: str
 
 
+# ==========================================
+# PART 16 - NLP EVENTS
+# ==========================================
+
+
+class NLPStartedEvent(DomainEvent):
+    project_id: str
+    version_id: str
+
+
+class SentenceExtractionCompletedEvent(DomainEvent):
+    project_id: str
+    version_id: str
+
+
+class TokenizationCompletedEvent(DomainEvent):
+    project_id: str
+    version_id: str
+
+
+class LanguageDetectedEvent(DomainEvent):
+    project_id: str
+    version_id: str
+    language: str
+
+
+class EntitiesExtractedEvent(DomainEvent):
+    project_id: str
+    version_id: str
+
+
+class KeywordsExtractedEvent(DomainEvent):
+    project_id: str
+    version_id: str
+
+
+class CitationAnalysisCompletedEvent(DomainEvent):
+    project_id: str
+    version_id: str
+
+
+class SectionClassificationCompletedEvent(DomainEvent):
+    project_id: str
+    version_id: str
+
+
+class StatisticsGeneratedEvent(DomainEvent):
+    project_id: str
+    version_id: str
+
+
+class NLPCompletedEvent(DomainEvent):
+    project_id: str
+    version_id: str
+
+
+class NLPFailedEvent(DomainEvent):
+    job_id: str
+    error: str
+
+
 EventHandler = Callable[[DomainEvent], None]
 
 
