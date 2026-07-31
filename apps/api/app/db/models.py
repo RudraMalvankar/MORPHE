@@ -561,3 +561,86 @@ class NlpJobDb(Base, TimestampMixin):
     status: Mapped[str] = mapped_column(String(50), default="queued", nullable=False, index=True)
     progress: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     error_message: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
+
+
+class DomainDocDb(Base, TimestampMixin):
+    __tablename__ = "domain_documents"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    version_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("paper_versions.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    primary_domain: Mapped[str] = mapped_column(String(100), nullable=False)
+    primary_domain_confidence: Mapped[float] = mapped_column(Float, default=1.0, nullable=False)
+    subdomain: Mapped[str] = mapped_column(String(100), nullable=False)
+    subdomain_confidence: Mapped[float] = mapped_column(Float, default=1.0, nullable=False)
+    research_type: Mapped[str] = mapped_column(String(100), nullable=False)
+    research_type_confidence: Mapped[float] = mapped_column(Float, default=1.0, nullable=False)
+    publication_type: Mapped[str] = mapped_column(String(100), nullable=False)
+    publication_type_confidence: Mapped[float] = mapped_column(Float, default=1.0, nullable=False)
+    citation_style: Mapped[str] = mapped_column(String(50), nullable=False)
+    citation_style_confidence: Mapped[float] = mapped_column(Float, default=1.0, nullable=False)
+    processed_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, nullable=False
+    )
+
+
+class DomainTerminologyDb(Base, TimestampMixin):
+    __tablename__ = "domain_terminologies"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    domain_doc_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("domain_documents.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    term: Mapped[str] = mapped_column(String(255), nullable=False)
+    frequency: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    term_type: Mapped[str] = mapped_column(String(100), nullable=False)
+
+
+class DomainStructureAnalysisDb(Base, TimestampMixin):
+    __tablename__ = "domain_structure_analyses"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    domain_doc_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("domain_documents.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    expected_sections: Mapped[dict] = mapped_column(JSON, nullable=False)
+    missing_sections: Mapped[dict] = mapped_column(JSON, nullable=False)
+    extra_sections: Mapped[dict] = mapped_column(JSON, nullable=False)
+    is_order_correct: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+
+
+class DomainJobDb(Base, TimestampMixin):
+    __tablename__ = "domain_jobs"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    version_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("paper_versions.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    status: Mapped[str] = mapped_column(String(50), default="queued", nullable=False, index=True)
+    progress: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    error_message: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
