@@ -10,7 +10,7 @@ from app.modules.auth.deps import create_access_token
 from app.modules.auth.repository import UserRepository
 from app.modules.cdm.repository import CanonicalDocumentRepository
 from app.modules.cdm.schemas import Author, CanonicalDocument, DocumentSection, SectionType
-from app.modules.nlp.pipeline import NlpPipelineRunner
+from app.modules.domain.pipeline import DomainPipelineRunner
 from app.modules.projects.repository import PaperVersionRepository, ProjectRepository
 
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
@@ -40,7 +40,7 @@ async def client(db_session):
     async def override_db():
         yield db_session
 
-    from app.modules.nlp.router import get_session_maker
+    from app.modules.domain.router import get_session_maker
 
     class MockSessionMaker:
         def __init__(self, session):
@@ -63,68 +63,67 @@ async def client(db_session):
 
 
 @pytest.mark.asyncio
-async def test_nlp_pipeline_runner():
+async def test_domain_pipeline_runner():
     raw_text = (
-        "Quantum Core Analysis. This paper proposes a robust algorithm for parsing data. "
-        "Contact researcher at author@stanford.edu or DOI: 10.1234/morphe.2026. "
-        "The experiments were completed at Stanford University."
+        "Quantum Computing Core Analysis. "
+        "This paper proposes a robust algorithm for network routing. "
+        "We evaluate neural architectures for deep learning tasks."
     )
     cdm_dict = {
-        "sections": [{"title": "Introduction", "content_markdown": raw_text}],
+        "sections": [
+            {"title": "Introduction", "content_markdown": raw_text},
+            {"title": "Methodology", "content_markdown": "Evaluation data details."},
+        ],
         "references": [],
     }
+    nlp_dict = {
+        "keywords": [{"keyword": "algorithm", "score": 5}],
+        "entities": [{"entity_text": "Stanford University", "entity_type": "ORGANIZATION"}],
+    }
 
-    runner = NlpPipelineRunner()
-    res = await runner.run(raw_text, cdm_dict)
+    runner = DomainPipelineRunner()
+    res = await runner.run(raw_text, cdm_dict, nlp_dict, {})
 
-    assert res["language"] == "en"
-    assert len(res["sentences"]) >= 2
-    assert len(res["tokens"]) > 10
-
-    # Check entities
-    entities_types = {e["type"] for e in res["entities"]}
-    assert "EMAIL" in entities_types
-    assert "DOI" in entities_types
-    assert "ORGANIZATION" in entities_types
-
-    # Check statistics
-    assert res["statistics"]["word_count"] > 10
-    assert res["statistics"]["lexical_diversity"] > 0.0
+    assert res["primary_domain"] == "Computer Science"
+    assert res["subdomain"] == "Machine Learning"
+    assert res["research_type"] == "Experimental"
+    assert res["citation_style"] == "ACM"
+    assert len(res["terminology"]) > 0
+    assert res["structure_analysis"]["is_order_correct"] is False  # missing sections
 
 
 @pytest.mark.asyncio
-async def test_nlp_api_workflow(client, db_session):
+async def test_domain_api_workflow(client, db_session):
     user_repo = UserRepository(db_session)
-    user = await user_repo.create_user("user@morphe.org", "pass123", "Alice")
+    user = await user_repo.create_user("analyst@morphe.edu", "pass123", "Alice")
 
     proj_repo = ProjectRepository(db_session)
-    project = await proj_repo.create(user.id, "NLP Analytics Project")
+    project = await proj_repo.create(user.id, "Domain Inferences")
 
     ver_repo = PaperVersionRepository(db_session)
     version = await ver_repo.create(
         project_id=project.id,
         version_number=1,
-        commit_message="Initial Draft",
+        commit_message="Domain verification",
         input_type="raw_text",
-        file_path_or_text="Abstract: details\n\nIntroduction: text content.",
+        file_path_or_text="Details for quantum mechanics routing.",
     )
 
-    # Create dummy CDM record in DB
     cdm_repo = CanonicalDocumentRepository(db_session)
     cdm_doc = CanonicalDocument(
         id=str(project.id),
         version_id=str(version.id),
         domain_profile_id="general",
-        title="Robust Neural Layout Parsing",
-        authors=[Author(id="auth_1", first_name="Alice", last_name="Bob")],
-        abstract="This paper proposes an algorithm at Stanford University.",
+        title="Robust Quantum Logic Gates",
+        authors=[Author(id="auth_1", first_name="Bob", last_name="Alice")],
+        abstract="This paper introduces quantum physics algorithms.",
         keywords=[],
         sections=[
             DocumentSection(
                 id="sec_1",
                 section_type=SectionType.INTRODUCTION,
                 title="Introduction",
-                content_markdown="Here is our method section details.",
+                content_markdown="Intro details.",
                 order=1,
             )
         ],
@@ -137,18 +136,17 @@ async def test_nlp_api_workflow(client, db_session):
     token = create_access_token(str(user.id))
     headers = {"Authorization": f"Bearer {token}"}
 
-    # 1. Trigger NLP analysis job
+    # 1. Trigger Domain analysis
     process_req = {"project_id": str(project.id), "version_id": str(version.id)}
-    res = await client.post("/api/v1/nlp/process", json=process_req, headers=headers)
+    res = await client.post("/api/v1/domain/process", json=process_req, headers=headers)
     assert res.status_code == 202
     job_id = res.json()["job_id"]
 
-    # 2. Check NLP job details
-    job_res = await client.get(f"/api/v1/nlp/jobs/{job_id}", headers=headers)
+    # 2. Check Job status
+    job_res = await client.get(f"/api/v1/domain/jobs/{job_id}", headers=headers)
     assert job_res.status_code == 200
     assert job_res.json()["status"] in {"queued", "running", "completed"}
 
-    # 3. Retrieve completed entities (we trigger it synchronously inside tests mock)
-    # The MockSessionMaker executes background tasks immediately on same session
-    ent_res = await client.get(f"/api/v1/nlp/entities/{version.id}", headers=headers)
-    assert ent_res.status_code in {200, 404}
+    # 3. Retrieve structure details
+    struct_res = await client.get(f"/api/v1/domain/structure/{version.id}", headers=headers)
+    assert struct_res.status_code in {200, 404}

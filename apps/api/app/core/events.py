@@ -258,6 +258,66 @@ class NLPFailedEvent(DomainEvent):
     error: str
 
 
+# ==========================================
+# PART 17 - DOMAIN INTELLIGENCE EVENTS
+# ==========================================
+
+
+class DomainAnalysisStartedEvent(DomainEvent):
+    project_id: str
+    version_id: str
+
+
+class PrimaryDomainDetectedEvent(DomainEvent):
+    project_id: str
+    version_id: str
+    primary_domain: str
+
+
+class SubdomainDetectedEvent(DomainEvent):
+    project_id: str
+    version_id: str
+    subdomain: str
+
+
+class ResearchTypeDetectedEvent(DomainEvent):
+    project_id: str
+    version_id: str
+    research_type: str
+
+
+class PublicationTypeDetectedEvent(DomainEvent):
+    project_id: str
+    version_id: str
+    publication_type: str
+
+
+class CitationStyleDetectedEvent(DomainEvent):
+    project_id: str
+    version_id: str
+    citation_style: str
+
+
+class TerminologyExtractedEvent(DomainEvent):
+    project_id: str
+    version_id: str
+
+
+class StructureAnalyzedEvent(DomainEvent):
+    project_id: str
+    version_id: str
+
+
+class DomainAnalysisCompletedEvent(DomainEvent):
+    project_id: str
+    version_id: str
+
+
+class DomainAnalysisFailedEvent(DomainEvent):
+    job_id: str
+    error: str
+
+
 EventHandler = Callable[[DomainEvent], None]
 
 
