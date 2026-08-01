@@ -1,9 +1,30 @@
 "use client";
 
-import Link from "next/link";
+import { useState, useEffect } from "react";
+import { useAppStore } from "@/store/use-app-store";
 import { FileText, Cpu, Settings, FolderKanban } from "lucide-react";
 
 export function NavShell({ children }: { children: React.ReactNode }) {
+  const { activeTab, setActiveTab } = useAppStore();
+  const [mounted, setMounted] = useState(false);
+  console.log("NAV_SHELL: rendered, activeTab is", activeTab, "mounted is", mounted);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const getLinkClass = (tab: string) => {
+    const base = "flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md w-full text-left transition-colors ";
+    if (activeTab === tab) {
+      return base + "bg-primary text-primary-foreground";
+    }
+    return base + "text-muted-foreground hover:bg-accent/50 hover:text-foreground";
+  };
+
+  if (!mounted) {
+    return <div className="min-h-screen bg-background text-foreground p-6">{children}</div>;
+  }
+
   return (
     <div className="flex h-screen w-full flex-col bg-background text-foreground overflow-hidden">
       {/* Top Navbar */}
@@ -27,37 +48,37 @@ export function NavShell({ children }: { children: React.ReactNode }) {
         {/* Sidebar */}
         <aside className="w-64 border-r border-border bg-card p-4 flex flex-col justify-between">
           <nav className="space-y-1">
-            <Link
-              href="#"
-              className="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md bg-accent text-accent-foreground"
+            <button
+              onClick={() => setActiveTab("workspaces")}
+              className={getLinkClass("workspaces")}
             >
               <FolderKanban className="h-4 w-4" />
               Workspaces
-            </Link>
-            <Link
-              href="#"
-              className="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+            </button>
+            <button
+              onClick={() => setActiveTab("documents")}
+              className={getLinkClass("documents")}
             >
               <FileText className="h-4 w-4" />
               Documents
-            </Link>
-            <Link
-              href="#"
-              className="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+            </button>
+            <button
+              onClick={() => setActiveTab("nlp")}
+              className={getLinkClass("nlp")}
             >
               <Cpu className="h-4 w-4" />
               NLP Engine
-            </Link>
+            </button>
           </nav>
 
           <div className="pt-4 border-t border-border">
-            <Link
-              href="#"
-              className="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+            <button
+              onClick={() => setActiveTab("settings")}
+              className={getLinkClass("settings")}
             >
               <Settings className="h-4 w-4" />
               Settings
-            </Link>
+            </button>
           </div>
         </aside>
 
