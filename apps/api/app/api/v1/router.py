@@ -2,14 +2,20 @@ from fastapi import APIRouter
 
 from app.api.v1.endpoints import health
 from app.modules.auth.router import router as auth_router
+from app.modules.cdm.router import router as cdm_router
 from app.modules.domain.router import router as domain_router
+from app.modules.generation import generation_router
 from app.modules.ingestion.router import router as ingestion_router
 from app.modules.nlp.router import router as nlp_router
+from app.modules.projects.router import router as projects_router
 from app.modules.storage.router import router as storage_router
 
 api_v1_router = APIRouter()
 api_v1_router.include_router(health.router)
 api_v1_router.include_router(auth_router)
+api_v1_router.include_router(projects_router)
+api_v1_router.include_router(cdm_router)
+api_v1_router.include_router(generation_router)
 api_v1_router.include_router(storage_router)
 api_v1_router.include_router(ingestion_router)
 api_v1_router.include_router(nlp_router)

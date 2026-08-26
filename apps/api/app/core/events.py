@@ -318,6 +318,48 @@ class DomainAnalysisFailedEvent(DomainEvent):
     error: str
 
 
+# ==========================================
+# PART 18 - GENERATION EVENTS
+# ==========================================
+
+
+class GenerationStartedEvent(DomainEvent):
+    project_id: str
+    mode: str
+    paper_type: str
+
+
+class GenerationSectionCompletedEvent(DomainEvent):
+    project_id: str
+    version_id: str
+    section_type: str
+
+
+class GenerationCompletedEvent(DomainEvent):
+    project_id: str
+    version_id: str
+    title: str
+    mode: str
+
+
+class GenerationFailedEvent(DomainEvent):
+    project_id: str
+    error: str
+
+
+class FormatConversionRequestedEvent(DomainEvent):
+    project_id: str
+    source_format: str
+    target_format: str
+    target_publisher: str
+
+
+class FormatConversionCompletedEvent(DomainEvent):
+    project_id: str
+    version_id: str
+    target_publisher: str
+
+
 EventHandler = Callable[[DomainEvent], None]
 
 
