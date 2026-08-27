@@ -8,6 +8,7 @@ from app.modules.domain.router import router as domain_router
 from app.modules.export.router import router as export_router
 from app.modules.generation import generation_router
 from app.modules.ingestion.router import router as ingestion_router
+from app.modules.knowledge import knowledge_router
 from app.modules.nlp.router import router as nlp_router
 from app.modules.projects.router import router as projects_router
 from app.modules.storage.router import router as storage_router
@@ -20,6 +21,7 @@ api_v1_router.include_router(cdm_router)
 api_v1_router.include_router(generation_router)
 api_v1_router.include_router(analysis_router)
 api_v1_router.include_router(export_router)
+api_v1_router.include_router(knowledge_router)
 api_v1_router.include_router(storage_router)
 api_v1_router.include_router(ingestion_router)
 api_v1_router.include_router(nlp_router)

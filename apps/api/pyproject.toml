@@ -41,6 +41,7 @@ ignore = []
 "app/modules/analysis/service.py" = ["E501"]
 "app/modules/export/service.py" = ["E501"]
 "app/modules/plugins/v1/*.py" = ["E501"]
+"app/modules/knowledge/data/*.py" = ["E501"]
 
 [tool.mypy]
 python_version = "3.11"
