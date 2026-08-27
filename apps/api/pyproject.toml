@@ -20,6 +20,11 @@ dependencies = [
     "arq>=0.25.0",
     "httpx>=0.27.0",
     "python-multipart>=0.0.9",
+    "pandas>=2.1.0",
+    "numpy>=1.26.0",
+    "scipy>=1.11.0",
+    "matplotlib>=3.8.0",
+    "google-genai>=1.0.0",
 ]
 
 [tool.ruff]
@@ -33,6 +38,7 @@ ignore = []
 [tool.ruff.lint.per-file-ignores]
 "app/modules/ai/prompts.py" = ["E501"]
 "app/modules/ai/service.py" = ["E501"]
+"app/modules/analysis/service.py" = ["E501"]
 
 [tool.mypy]
 python_version = "3.11"

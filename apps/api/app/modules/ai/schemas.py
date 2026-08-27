@@ -96,6 +96,19 @@ class RefineSectionRequest(BaseModel):
     feedback: str
 
 
+class GenerateFromDataRequest(BaseModel):
+    project_id: str
+    data_id: str
+    research_question: str
+    variables: List[str] = Field(default_factory=list)
+    paper_type: PaperType = PaperType.RESEARCH_ARTICLE
+    citation_style: CitationStyle = CitationStyle.IEEE
+    target_publisher: str = "ieee"
+    research_domain: str = "general"
+    additional_instructions: Optional[str] = None
+    language: str = "en"
+
+
 class GeneratedSection(BaseModel):
     section_type: SectionType
     title: str

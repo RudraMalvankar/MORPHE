@@ -17,6 +17,7 @@ from app.modules.ai.schemas import (
     ConvertFormatRequest,
     GeneratedSection,
     GenerateFromContentRequest,
+    GenerateFromDataRequest,
     GenerateFromScratchRequest,
     GenerationResultResponse,
     PaperType,
@@ -321,6 +322,126 @@ Return JSON with:
             get_keywords_generation_prompt(title, abstract, research_domain)
         )
         return [k.strip() for k in response.split(",") if k.strip()][:8]
+
+    async def generate_from_data(
+        self,
+        request: GenerateFromDataRequest,
+        analysis_summary: str,
+        tables_description: str,
+        figures_description: str,
+    ) -> GenerationResultResponse:
+        if not self.client.is_available:
+            raise RuntimeError("Gemini API not configured. Set GEMINI_API_KEY in .env.")
+
+        logger.info(
+            f"Starting data-driven generation: {request.research_question[:50]}..."
+        )
+
+        system_inst = get_system_instruction(request.paper_type)
+
+        title_prompt = (
+            f"Generate a compelling academic paper title for a data-driven study.\n"
+            f"Research Question: {request.research_question}\n"
+            f"Domain: {request.research_domain}\n"
+            f"Data Summary: {analysis_summary[:500]}"
+        )
+        title_response = await self.client.generate(
+            title_prompt, system_instruction=system_inst
+        )
+        titles = [
+            t.strip() for t in title_response.strip().split("\n") if t.strip()
+        ]
+        title = titles[0] if titles else request.research_question[:80]
+
+        abstract = await self.client.generate(
+            get_abstract_generation_prompt(
+                title,
+                request.research_question,
+                request.variables,
+                request.paper_type,
+            ),
+            system_instruction=system_inst,
+        )
+
+        sections_structure = PAPER_TYPE_STRUCTURES.get(
+            request.paper_type,
+            PAPER_TYPE_STRUCTURES[PaperType.RESEARCH_ARTICLE],
+        )
+
+        generated_sections: List[GeneratedSection] = []
+        previous_sections: Dict[str, str] = {}
+
+        data_context = (
+            f"\n\nDATA ANALYSIS CONTEXT:\n"
+            f"Research Question: {request.research_question}\n"
+            f"Analysis Summary: {analysis_summary}\n"
+            f"Tables: {tables_description}\n"
+            f"Figures: {figures_description}\n"
+            f"Variables studied: {', '.join(request.variables)}"
+        )
+
+        for idx, section_type in enumerate(sections_structure):
+            if section_type in (
+                SectionType.TITLE,
+                SectionType.ABSTRACT,
+                SectionType.KEYWORDS,
+            ):
+                continue
+
+            logger.info(
+                f"Generating data-driven section: {section_type.value}"
+            )
+            section_content = await self.client.generate(
+                get_section_generation_prompt(
+                    section_type=section_type,
+                    title=title,
+                    topic=request.research_question,
+                    paper_type=request.paper_type,
+                    abstract=abstract,
+                    previous_sections=previous_sections,
+                    additional_instructions=(
+                        (request.additional_instructions or "") + data_context
+                    ),
+                    citation_style=request.citation_style,
+                ),
+                system_instruction=system_inst,
+            )
+
+            section = GeneratedSection(
+                section_type=section_type,
+                title=section_type.value.replace("_", " ").title(),
+                content=section_content.strip(),
+                order=idx + 1,
+            )
+            generated_sections.append(section)
+            previous_sections[section_type.value] = section_content.strip()
+
+        keywords_response = await self.client.generate(
+            get_keywords_generation_prompt(
+                title, abstract, request.research_domain
+            ),
+            system_instruction=system_inst,
+        )
+        keywords = [
+            k.strip() for k in keywords_response.split(",") if k.strip()
+        ]
+
+        return GenerationResultResponse(
+            job_id=str(uuid.uuid4()),
+            status="completed",
+            title=title,
+            abstract=abstract.strip(),
+            sections=generated_sections,
+            keywords=keywords[:8],
+            metadata={
+                "paper_type": request.paper_type.value,
+                "citation_style": request.citation_style.value,
+                "target_publisher": request.target_publisher,
+                "research_domain": request.research_domain,
+                "mode": "from_data",
+                "data_id": request.data_id,
+            },
+        )
 
 
 ai_service = AIService()
