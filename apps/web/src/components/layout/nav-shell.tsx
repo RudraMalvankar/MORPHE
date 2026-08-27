@@ -2,12 +2,14 @@
 
 import { useState, useEffect } from "react";
 import { useAppStore } from "@/store/use-app-store";
-import { FileText, Cpu, Settings, FolderKanban } from "lucide-react";
+import {
+  FileText, Cpu, Settings, FolderKanban,
+  Sparkles, Download, BookOpen
+} from "lucide-react";
 
 export function NavShell({ children }: { children: React.ReactNode }) {
   const { activeTab, setActiveTab } = useAppStore();
   const [mounted, setMounted] = useState(false);
-  console.log("NAV_SHELL: rendered, activeTab is", activeTab, "mounted is", mounted);
 
   useEffect(() => {
     setMounted(true);
@@ -27,7 +29,6 @@ export function NavShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex h-screen w-full flex-col bg-background text-foreground overflow-hidden">
-      {/* Top Navbar */}
       <header className="flex h-14 items-center justify-between border-b border-border px-6 bg-card">
         <div className="flex items-center gap-3">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold text-lg">
@@ -43,46 +44,46 @@ export function NavShell({ children }: { children: React.ReactNode }) {
         </div>
       </header>
 
-      {/* Main Body */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar */}
         <aside className="w-64 border-r border-border bg-card p-4 flex flex-col justify-between">
           <nav className="space-y-1">
-            <button
-              onClick={() => setActiveTab("workspaces")}
-              className={getLinkClass("workspaces")}
-            >
+            <button onClick={() => setActiveTab("workspaces")} className={getLinkClass("workspaces")}>
               <FolderKanban className="h-4 w-4" />
               Workspaces
             </button>
-            <button
-              onClick={() => setActiveTab("documents")}
-              className={getLinkClass("documents")}
-            >
+            <button onClick={() => setActiveTab("documents")} className={getLinkClass("documents")}>
               <FileText className="h-4 w-4" />
               Documents
             </button>
-            <button
-              onClick={() => setActiveTab("nlp")}
-              className={getLinkClass("nlp")}
-            >
+            <button onClick={() => setActiveTab("nlp")} className={getLinkClass("nlp")}>
               <Cpu className="h-4 w-4" />
               NLP Engine
+            </button>
+            <div className="pt-2 pb-1">
+              <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider px-3">New</span>
+            </div>
+            <button onClick={() => setActiveTab("generation")} className={getLinkClass("generation")}>
+              <Sparkles className="h-4 w-4" />
+              AI Generation
+            </button>
+            <button onClick={() => setActiveTab("export")} className={getLinkClass("export")}>
+              <Download className="h-4 w-4" />
+              Export
+            </button>
+            <button onClick={() => setActiveTab("knowledge")} className={getLinkClass("knowledge")}>
+              <BookOpen className="h-4 w-4" />
+              Knowledge Base
             </button>
           </nav>
 
           <div className="pt-4 border-t border-border">
-            <button
-              onClick={() => setActiveTab("settings")}
-              className={getLinkClass("settings")}
-            >
+            <button onClick={() => setActiveTab("settings")} className={getLinkClass("settings")}>
               <Settings className="h-4 w-4" />
               Settings
             </button>
           </div>
         </aside>
 
-        {/* Content Viewport */}
         <main className="flex-1 overflow-auto p-6 bg-background">
           {children}
         </main>

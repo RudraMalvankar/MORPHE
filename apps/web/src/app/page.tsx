@@ -4,6 +4,9 @@ import React, { useState, useEffect } from "react";
 import { useAppStore } from "@/store/use-app-store";
 import { Button } from "@/components/ui/button";
 import { FolderKanban, Plus, FileText, Upload, Sparkles, AlertCircle, CheckCircle, Database } from "lucide-react";
+import GenerationPage from "@/components/generation-page";
+import ExportPage from "@/components/export-page";
+import KnowledgeBasePage from "@/components/knowledge-page";
 
 // Types
 interface Project {
@@ -376,6 +379,21 @@ export default function Home() {
         </div>
       </div>
     );
+  }
+
+  // Render Generation Tab
+  if (activeTab === "generation") {
+    return <GenerationPage />;
+  }
+
+  // Render Export Tab
+  if (activeTab === "export") {
+    return <ExportPage />;
+  }
+
+  // Render Knowledge Base Tab
+  if (activeTab === "knowledge") {
+    return <KnowledgeBasePage />;
   }
 
   // Render Settings Tab
