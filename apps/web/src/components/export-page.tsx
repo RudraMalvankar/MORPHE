@@ -2,12 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import {
-  Download, CheckCircle, Loader2,
-  Eye, Globe
-} from "lucide-react";
-
-const API_URL = "http://localhost:8000/api/v1";
+import { Download, CheckCircle, Loader2, Eye, Globe } from "lucide-react";
+import { api } from "@/lib/api";
 
 export default function ExportPage() {
   const [publishers, setPublishers] = useState<any[]>([]);
@@ -18,8 +14,8 @@ export default function ExportPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    fetch(API_URL + "/export/publishers").then(r => r.json()).then(setPublishers);
-    fetch(API_URL + "/export/formats").then(r => r.json()).then(d => setFormats(d));
+    api.export.publishers().then(setPublishers).catch(() => {});
+    api.export.formats().then(setFormats).catch(() => {});
   }, []);
 
   const sampleCdm = {
@@ -37,24 +33,19 @@ export default function ExportPage() {
       { authors: ["Smith, J.", "Johnson, A."], title: "AI in Modern Medicine", journal: "Nature Medicine", year: "2024", volume: "30", issue: "2", pages: "123-145" },
       { authors: ["Williams, B.", "Chen, L."], title: "Machine Learning for Diagnostics", journal: "The Lancet", year: "2023", volume: "401", issue: "10278", pages: "567-578" }
     ],
-    keywords: ["artificial intelligence", "healthcare", "diagnostics", "machine learning"]
+    keywords: ["artificial intelligence", "healthcare", "diagnostics"]
   };
 
   const handlePreview = async () => {
     setLoading(true);
     try {
-      const res = await fetch(API_URL + "/export/preview", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          publisher_key: selectedPublisher,
-          format: selectedFormat,
-          cdm: sampleCdm,
-        }),
+      const data = await api.export.preview({
+        publisher_key: selectedPublisher,
+        format: selectedFormat,
+        cdm: sampleCdm,
       });
-      const data = await res.json();
       setPreview(data.html || data.latex || data.docx_xml || data.typst || "");
-    } catch (e) {
+    } catch {
       setPreview("Error loading preview");
     } finally {
       setLoading(false);
@@ -78,7 +69,6 @@ export default function ExportPage() {
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="bg-card border border-border rounded-xl p-6 space-y-4">
           <h3 className="font-semibold text-lg border-b border-border pb-3">Export Settings</h3>
-
           <div>
             <label className="text-xs text-muted-foreground font-mono">Publisher</label>
             <select
@@ -91,7 +81,6 @@ export default function ExportPage() {
               ))}
             </select>
           </div>
-
           {getPublisherInfo(selectedPublisher) && (
             <div className="bg-background border border-border rounded-lg p-3 space-y-2 text-xs">
               <div className="flex justify-between">
@@ -104,7 +93,6 @@ export default function ExportPage() {
               </div>
             </div>
           )}
-
           <div>
             <label className="text-xs text-muted-foreground font-mono">Format</label>
             <div className="grid grid-cols-2 gap-2 mt-1">
@@ -124,7 +112,6 @@ export default function ExportPage() {
               ))}
             </div>
           </div>
-
           <Button onClick={handlePreview} disabled={loading} className="w-full">
             {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Eye className="h-4 w-4 mr-2" />}
             {loading ? "Generating..." : "Preview Export"}
@@ -132,18 +119,14 @@ export default function ExportPage() {
         </div>
 
         <div className="bg-card border border-border rounded-xl p-6 space-y-4">
-          <h3 className="font-semibold text-lg border-b border-border pb-3">
-            All Publishers ({publishers.length})
-          </h3>
+          <h3 className="font-semibold text-lg border-b border-border pb-3">All Publishers ({publishers.length})</h3>
           <div className="space-y-2 max-h-[500px] overflow-y-auto">
             {publishers.map((p) => (
               <div
                 key={p.key}
                 onClick={() => setSelectedPublisher(p.key)}
                 className={`p-3 rounded-lg border cursor-pointer transition-colors ${
-                  selectedPublisher === p.key
-                    ? "bg-primary/10 border-primary"
-                    : "bg-background border-border hover:border-muted-foreground/40"
+                  selectedPublisher === p.key ? "bg-primary/10 border-primary" : "bg-background border-border hover:border-muted-foreground/40"
                 }`}
               >
                 <div className="flex items-center justify-between">
@@ -151,12 +134,8 @@ export default function ExportPage() {
                   {selectedPublisher === p.key && <CheckCircle className="h-4 w-4 text-primary" />}
                 </div>
                 <div className="flex gap-2 mt-1">
-                  <span className="text-[10px] font-mono text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
-                    {p.latex_class}
-                  </span>
-                  <span className="text-[10px] font-mono text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
-                    {p.citation_style}
-                  </span>
+                  <span className="text-[10px] font-mono text-muted-foreground bg-muted px-1.5 py-0.5 rounded">{p.latex_class}</span>
+                  <span className="text-[10px] font-mono text-muted-foreground bg-muted px-1.5 py-0.5 rounded">{p.citation_style}</span>
                 </div>
               </div>
             ))}
@@ -164,9 +143,7 @@ export default function ExportPage() {
         </div>
 
         <div className="bg-card border border-border rounded-xl p-6 space-y-4">
-          <h3 className="font-semibold text-lg border-b border-border pb-3">
-            Preview ({selectedFormat.toUpperCase()})
-          </h3>
+          <h3 className="font-semibold text-lg border-b border-border pb-3">Preview ({selectedFormat.toUpperCase()})</h3>
           {preview ? (
             <div className="max-h-[500px] overflow-y-auto">
               {selectedFormat === "html" ? (
@@ -181,7 +158,7 @@ export default function ExportPage() {
           ) : (
             <div className="text-center py-16 text-muted-foreground">
               <Globe className="h-12 w-12 mx-auto mb-4 opacity-30" />
-              <p className="text-sm">Click &quot;Preview&quot; to see the export output.</p>
+              <p className="text-sm">Click Preview to see the export output.</p>
             </div>
           )}
         </div>

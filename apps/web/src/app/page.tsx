@@ -4,11 +4,11 @@ import React, { useState, useEffect } from "react";
 import { useAppStore } from "@/store/use-app-store";
 import { Button } from "@/components/ui/button";
 import { FolderKanban, Plus, FileText, Upload, Sparkles, AlertCircle, CheckCircle, Database } from "lucide-react";
+import { api } from "@/lib/api";
 import GenerationPage from "@/components/generation-page";
 import ExportPage from "@/components/export-page";
 import KnowledgeBasePage from "@/components/knowledge-page";
 
-// Types
 interface Project {
   id: string;
   title: string;
@@ -39,13 +39,11 @@ interface Entity {
 export default function Home() {
   const { activeTab, activeProject, setActiveProject } = useAppStore();
   const [mounted, setMounted] = useState(false);
-  console.log("PAGE: rendered, activeTab is", activeTab, "mounted is", mounted);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  // Local Mock State to let the user play instantly
   const [projects, setProjects] = useState<Project[]>([
     { id: "p-1", title: "Autonomous Agents Survey", created_at: "2026-07-28" },
     { id: "p-2", title: "Quantum Gate Mechanics", created_at: "2026-07-30" }
@@ -61,12 +59,9 @@ export default function Home() {
     ]
   });
 
-  // Selected File for NLP analysis view
-  const [selectedFileId, setSelectedFileId] = useState<string>("f-1");
   const [isProcessing, setIsProcessing] = useState(false);
   const [processSuccess, setProcessSuccess] = useState(false);
 
-  // Analysis result mock populated dynamically
   const [nlpStats, setNlpStats] = useState<NlpStats>({
     word_count: 3420,
     sentence_count: 142,
@@ -81,7 +76,7 @@ export default function Home() {
     { text: "Transformer Neural Net", type: "ALGORITHM" },
     { text: "ResNet-50", type: "ALGORITHM" }
   ]);
-  const [domainInfo, setDomainInfo] = useState({
+  const [domainInfo] = useState({
     domain: "Computer Science",
     subdomain: "Machine Learning",
     research_type: "Experimental",
@@ -94,31 +89,34 @@ export default function Home() {
     }
   });
 
-  // Handlers
-  const handleCreateProject = () => {
+  const handleCreateProject = async () => {
     if (!newProjTitle.trim()) return;
-    const newId = `p-${Date.now()}`;
-    const newProj = { id: newId, title: newProjTitle, created_at: new Date().toISOString().split("T")[0] };
-    setProjects([...projects, newProj]);
-    setFiles({ ...files, [newId]: [] });
-    setNewProjTitle("");
-    setActiveProject(newId);
+    try {
+      const proj = await api.projects.create({ title: newProjTitle });
+      setProjects([...projects, proj]);
+      setNewProjTitle("");
+      setActiveProject(proj.id);
+    } catch {
+      const newId = "p-" + Date.now();
+      const newProj = { id: newId, title: newProjTitle, created_at: new Date().toISOString().split("T")[0] };
+      setProjects([...projects, newProj]);
+      setFiles({ ...files, [newId]: [] });
+      setNewProjTitle("");
+      setActiveProject(newId);
+    }
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!activeProject || !e.target.files || e.target.files.length === 0) return;
     const uploadedFile = e.target.files[0];
     const newFile: FileMetadata = {
-      id: `f-${Date.now()}`,
+      id: "f-" + Date.now(),
       filename: uploadedFile.name,
       size: uploadedFile.size,
       status: "uploaded",
       checksum: "sha256_" + Math.random().toString(36).substring(7)
     };
-    setFiles({
-      ...files,
-      [activeProject]: [...(files[activeProject] || []), newFile]
-    });
+    setFiles({ ...files, [activeProject]: [...(files[activeProject] || []), newFile] });
   };
 
   const runAnalysis = (fileId: string) => {
@@ -127,8 +125,6 @@ export default function Home() {
     setTimeout(() => {
       setIsProcessing(false);
       setProcessSuccess(true);
-      setSelectedFileId(fileId);
-      // Generate some mock stats
       setNlpStats({
         word_count: Math.floor(Math.random() * 4000) + 1000,
         sentence_count: Math.floor(Math.random() * 200) + 50,
@@ -136,7 +132,6 @@ export default function Home() {
         lexical_diversity: parseFloat((Math.random() * 0.3 + 0.4).toFixed(2)),
         reading_time_mins: parseFloat((Math.random() * 15 + 5).toFixed(1))
       });
-      // Toggle analyzed status
       if (activeProject) {
         setFiles({
           ...files,
@@ -146,11 +141,8 @@ export default function Home() {
     }, 2000);
   };
 
-  if (!mounted) {
-    return null;
-  }
+  if (!mounted) return null;
 
-  // Render Workspaces Tab
   if (activeTab === "workspaces") {
     return (
       <div className="space-y-8 animate-in fade-in duration-300">
@@ -160,8 +152,6 @@ export default function Home() {
             <p className="text-muted-foreground text-sm">Manage your active research projects and document folders.</p>
           </div>
         </div>
-
-        {/* Create Project Card */}
         <div className="bg-card border border-border p-6 rounded-xl space-y-4 max-w-md">
           <h3 className="font-semibold text-lg flex items-center gap-2">
             <Plus className="h-5 w-5 text-primary" /> Create New Workspace
@@ -172,13 +162,12 @@ export default function Home() {
               placeholder="Workspace or Project Title..."
               value={newProjTitle}
               onChange={(e) => setNewProjTitle(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleCreateProject()}
               className="bg-background border border-border px-3 py-2 rounded-md text-sm flex-1 outline-none focus:border-primary transition-colors text-foreground"
             />
             <Button onClick={handleCreateProject}>Create</Button>
           </div>
         </div>
-
-        {/* Projects List */}
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {projects.map((proj) => (
             <div
@@ -206,7 +195,6 @@ export default function Home() {
     );
   }
 
-  // Render Documents Tab
   if (activeTab === "documents") {
     const currentFiles = activeProject ? (files[activeProject] || []) : [];
     return (
@@ -215,36 +203,26 @@ export default function Home() {
           <h2 className="text-3xl font-bold tracking-tight">Documents</h2>
           <p className="text-muted-foreground text-sm">
             {activeProject
-              ? `Upload and parse files inside workspace "${projects.find(p => p.id === activeProject)?.title}"`
+              ? "Upload and parse files inside workspace \"" + (projects.find(p => p.id === activeProject)?.title || "") + "\""
               : "Please select an active workspace in the Workspaces tab first."}
           </p>
         </div>
-
         {activeProject && (
           <div className="grid gap-8 lg:grid-cols-3">
-            {/* Upload Area */}
             <div className="bg-card border border-border p-6 rounded-xl space-y-6 flex flex-col justify-center items-center text-center h-64 relative border-dashed hover:border-primary transition-colors">
               <Upload className="h-10 w-10 text-muted-foreground" />
               <div className="space-y-1">
                 <p className="font-semibold text-sm">Drag and drop file here</p>
                 <p className="text-xs text-muted-foreground">Supports PDF, DOCX, LaTeX, Markdown & TXT up to 50MB</p>
               </div>
-              <input
-                type="file"
-                onChange={handleFileUpload}
-                className="absolute inset-0 opacity-0 cursor-pointer"
-              />
+              <input type="file" onChange={handleFileUpload} className="absolute inset-0 opacity-0 cursor-pointer" />
             </div>
-
-            {/* Files List Table */}
             <div className="lg:col-span-2 bg-card border border-border rounded-xl p-6 space-y-4">
               <h3 className="font-semibold text-lg flex items-center gap-2 border-b border-border pb-3">
                 <Database className="h-5 w-5 text-primary" /> Workspace Files ({currentFiles.length})
               </h3>
               {currentFiles.length === 0 ? (
-                <div className="text-center py-12 text-muted-foreground text-sm">
-                  No files uploaded yet in this workspace.
-                </div>
+                <div className="text-center py-12 text-muted-foreground text-sm">No files uploaded yet in this workspace.</div>
               ) : (
                 <div className="space-y-3 overflow-y-auto max-h-96">
                   {currentFiles.map((f) => (
@@ -256,17 +234,12 @@ export default function Home() {
                         </p>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className={`text-xs px-2 py-0.5 rounded font-mono border ${
+                        <span className={"text-xs px-2 py-0.5 rounded font-mono border " + (
                           f.status === "analyzed" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-blue-500/10 text-blue-400 border-blue-500/20"
-                        }`}>
+                        )}>
                           {f.status}
                         </span>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => runAnalysis(f.id)}
-                          disabled={isProcessing}
-                        >
+                        <Button size="sm" variant="outline" onClick={() => runAnalysis(f.id)} disabled={isProcessing}>
                           {isProcessing ? "Processing..." : "Analyze"}
                         </Button>
                       </div>
@@ -281,7 +254,6 @@ export default function Home() {
     );
   }
 
-  // Render NLP & Domain Engine Tab
   if (activeTab === "nlp") {
     return (
       <div className="space-y-8 animate-in fade-in duration-300">
@@ -296,15 +268,12 @@ export default function Home() {
             </div>
           )}
         </div>
-
         {processSuccess && (
           <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-emerald-400 text-sm flex items-center gap-2">
             <CheckCircle className="h-5 w-5" /> Pipeline ran successfully! Linguistic representations updated.
           </div>
         )}
-
         <div className="grid gap-8 lg:grid-cols-3">
-          {/* Statistical Analytics Panel */}
           <div className="bg-card border border-border p-6 rounded-xl space-y-4">
             <h3 className="font-semibold text-lg border-b border-border pb-3">Linguistic Statistics</h3>
             <div className="grid grid-cols-2 gap-4">
@@ -317,8 +286,8 @@ export default function Home() {
                 <p className="text-2xl font-bold text-primary">{nlpStats.sentence_count}</p>
               </div>
               <div className="bg-background p-4 rounded-lg border border-border text-center col-span-2">
-                <span className="text-xs text-muted-foreground font-mono">Lexical Diversity Ratio</span>
-                <p className="text-xl font-bold text-foreground">{(nlpStats.lexical_diversity * 100).toFixed(0)}% unique vocabulary</p>
+                <span className="text-xs text-muted-foreground font-mono">Lexical Diversity</span>
+                <p className="text-xl font-bold text-foreground">{(nlpStats.lexical_diversity * 100).toFixed(0)}% unique</p>
               </div>
               <div className="bg-background p-4 rounded-lg border border-border text-center col-span-2">
                 <span className="text-xs text-muted-foreground font-mono">Avg Sentence Length</span>
@@ -326,23 +295,17 @@ export default function Home() {
               </div>
             </div>
           </div>
-
-          {/* Named Entities Panel */}
           <div className="bg-card border border-border p-6 rounded-xl space-y-4">
-            <h3 className="font-semibold text-lg border-b border-border pb-3">Linguistic Named Entities</h3>
+            <h3 className="font-semibold text-lg border-b border-border pb-3">Named Entities</h3>
             <div className="flex flex-wrap gap-2 overflow-y-auto max-h-56">
               {entities.map((e, idx) => (
                 <div key={idx} className="flex items-center gap-2 px-3 py-1 bg-background border border-border rounded-full text-xs">
                   <span className="font-semibold text-foreground">{e.text}</span>
-                  <span className="text-[10px] text-muted-foreground font-mono px-1.5 py-0.5 rounded bg-muted border border-border">
-                    {e.type}
-                  </span>
+                  <span className="text-[10px] text-muted-foreground font-mono px-1.5 py-0.5 rounded bg-muted border border-border">{e.type}</span>
                 </div>
               ))}
             </div>
           </div>
-
-          {/* Domain Expectation Analysis Panel */}
           <div className="bg-card border border-border p-6 rounded-xl space-y-4">
             <h3 className="font-semibold text-lg border-b border-border pb-3">Domain Profiles</h3>
             <div className="space-y-4 text-sm">
@@ -355,12 +318,11 @@ export default function Home() {
                 <span className="font-bold text-foreground">{domainInfo.research_type}</span>
               </div>
               <div className="flex items-center justify-between bg-background p-3 rounded-lg border border-border">
-                <span className="text-muted-foreground">Format Citation</span>
-                <span className="font-bold text-foreground">{domainInfo.style} Standard</span>
+                <span className="text-muted-foreground">Citation Style</span>
+                <span className="font-bold text-foreground">{domainInfo.style}</span>
               </div>
-              
               <div className="space-y-2 pt-2 border-t border-border">
-                <span className="text-xs text-muted-foreground font-mono">Structural Completeness (IMRaD Profile):</span>
+                <span className="text-xs text-muted-foreground font-mono">Structural Completeness (IMRaD):</span>
                 <div className="space-y-1 text-xs">
                   {domainInfo.structure.present.map((sec, idx) => (
                     <div key={idx} className="flex items-center gap-2 text-emerald-400">
@@ -381,29 +343,24 @@ export default function Home() {
     );
   }
 
-  // Render Generation Tab
   if (activeTab === "generation") {
     return <GenerationPage />;
   }
 
-  // Render Export Tab
   if (activeTab === "export") {
     return <ExportPage />;
   }
 
-  // Render Knowledge Base Tab
   if (activeTab === "knowledge") {
     return <KnowledgeBasePage />;
   }
 
-  // Render Settings Tab
   return (
     <div className="space-y-6 max-w-xl animate-in fade-in duration-300">
       <div>
         <h2 className="text-3xl font-bold tracking-tight">Settings</h2>
         <p className="text-muted-foreground text-sm">Configure system parameters and knowledge base settings.</p>
       </div>
-
       <div className="bg-card border border-border p-6 rounded-xl space-y-4">
         <h3 className="font-semibold text-lg border-b border-border pb-2">Developer Configurations</h3>
         <div className="space-y-3 text-sm">
