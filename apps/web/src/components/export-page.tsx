@@ -54,7 +54,7 @@ export default function ExportPage() {
       });
       const data = await res.json();
       setPreview(data.html || data.latex || data.docx_xml || data.typst || "");
-    } catch {
+    } catch (e) {
       setPreview("Error loading preview");
     } finally {
       setLoading(false);

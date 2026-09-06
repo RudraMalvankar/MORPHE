@@ -37,3 +37,9 @@ htmlcov/
 # Docker / Storage
 .docker-data/
 storage_data/
+
+# Database files
+morphe.db
+*.db
+apps/api/exports/
+storage_data/
