@@ -1,6 +1,7 @@
 from typing import Any, Dict, List
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
@@ -10,6 +11,18 @@ from app.modules.export.service import ExportService
 from app.modules.plugins.v1.registry import list_plugins
 
 router = APIRouter(prefix="/export", tags=["Export Engine"])
+
+
+def _build_cdm(request: ExportRequest) -> Dict[str, Any]:
+    data = request.cdm_data or {}
+    return {
+        "title": data.get("title", "Research Paper"),
+        "authors": data.get("authors", ["Author"]),
+        "abstract": data.get("abstract", ""),
+        "sections": data.get("sections", []),
+        "references": data.get("references", []),
+        "keywords": data.get("keywords", []),
+    }
 
 
 def get_export_service(db: AsyncSession = Depends(get_db)) -> ExportService:
@@ -46,15 +59,38 @@ async def export_paper(
     request: ExportRequest,
     service: ExportService = Depends(get_export_service),
 ):
-    cdm = {
-        "title": "Research Paper",
-        "authors": ["Author"],
-        "abstract": "",
-        "sections": [],
-        "references": [],
-        "keywords": [],
-    }
+    cdm = _build_cdm(request)
     return await service.export_paper(request, cdm)
+
+
+@router.post("/download")
+async def download_export(
+    request: ExportRequest,
+    service: ExportService = Depends(get_export_service),
+):
+    cdm = _build_cdm(request)
+    result = await service.export_paper(request, cdm)
+
+    import os
+    ext_map = {"pdf": ".pdf", "latex": ".tex", "docx": ".docx", "html": ".html"}
+    ext = ext_map.get(request.format.value, ".txt")
+    file_path = service.export_dir / f"{result.job_id}{ext}"
+
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="Export file not generated")
+
+    media_types = {
+        "pdf": "application/pdf",
+        "latex": "application/x-tex",
+        "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "html": "text/html",
+    }
+
+    return FileResponse(
+        path=str(file_path),
+        media_type=media_types.get(request.format.value, "application/octet-stream"),
+        filename=f"paper_{request.publisher_key}_{request.format.value}{ext}",
+    )
 
 
 @router.post("/preview")

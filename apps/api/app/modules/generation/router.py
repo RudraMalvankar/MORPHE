@@ -226,6 +226,41 @@ async def generation_health():
     }
 
 
+@router.get("/dashboard")
+async def dashboard_stats(
+    current_user: User = Depends(get_current_user),
+):
+    """Quick stats for dashboard — counts from local state."""
+    import os
+
+    from app.modules.ai.client import gemini_client
+
+    storage_dir = settings.ORIGINAL_INPUTS_DIR
+    file_count = 0
+    if os.path.exists(storage_dir):
+        file_count = len([
+            f for f in os.listdir(storage_dir)
+            if os.path.isfile(os.path.join(storage_dir, f))
+        ])
+
+    export_dir = "exports"
+    export_count = 0
+    if os.path.exists(export_dir):
+        export_count = len([
+            f for f in os.listdir(export_dir)
+            if os.path.isfile(os.path.join(export_dir, f))
+        ])
+
+    return {
+        "total_files": file_count,
+        "total_exports": export_count,
+        "gemini_status": (
+            "available" if gemini_client.is_available else "unavailable"
+        ),
+        "dev_mode": settings.DEV_MODE,
+    }
+
+
 @router.post("/upload")
 async def upload_document(
     file: UploadFile = File(...),

@@ -12,10 +12,11 @@ class ExportFormat(str, Enum):
 
 
 class ExportRequest(BaseModel):
-    version_id: str
-    project_id: str
+    version_id: str = "local-draft"
+    project_id: str = "dev-project"
     format: ExportFormat = ExportFormat.PDF
     publisher_key: str = "ieee"
+    cdm_data: Dict[str, Any] = Field(default_factory=dict)
 
 
 class ExportJobResponse(BaseModel):

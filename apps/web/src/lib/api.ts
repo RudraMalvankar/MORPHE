@@ -58,11 +58,14 @@ function sseStream(path: string, body: any, onEvent: (event: any) => void) {
 
 export const api = {
   projects: {
-    list: () => apiFetch("/api/v1/projects/"),
+    list: () => apiFetch("/api/v1/projects"),
     get: (id: string) => apiFetch("/api/v1/projects/" + id),
-    create: (data: { title: string }) =>
-      apiFetch("/api/v1/projects/", { method: "POST", body: JSON.stringify(data) }),
+    create: (data: { title: string; description?: string }) =>
+      apiFetch("/api/v1/projects", { method: "POST", body: JSON.stringify(data) }),
+    update: (id: string, data: any) =>
+      apiFetch("/api/v1/projects/" + id, { method: "PATCH", body: JSON.stringify(data) }),
     delete: (id: string) => apiFetch("/api/v1/projects/" + id, { method: "DELETE" }),
+    versions: (id: string) => apiFetch("/api/v1/projects/" + id + "/versions"),
   },
   generation: {
     fromScratch: (data: any) =>
@@ -93,6 +96,17 @@ export const api = {
     publisher: (key: string) => apiFetch("/api/v1/export/publishers/" + key),
     generate: (data: any) =>
       apiFetch("/api/v1/export/generate", { method: "POST", body: JSON.stringify(data) }),
+    download: (data: any) => {
+      const base = API_BASE + "/api/v1/export/download";
+      return fetch(base, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      }).then((res) => {
+        if (!res.ok) throw new Error("Export failed");
+        return res.blob();
+      });
+    },
     preview: (data: any) =>
       apiFetch("/api/v1/export/preview", { method: "POST", body: JSON.stringify(data) }),
   },
