@@ -139,5 +139,42 @@ class GeminiClient:
 
         return sections
 
+    async def generate_stream(
+        self,
+        prompt: str,
+        system_instruction: Optional[str] = None,
+        temperature: Optional[float] = None,
+        max_tokens: Optional[int] = None,
+    ):
+        """Async generator yielding text chunks as they arrive from Gemini."""
+        if not self._initialized:
+            raise RuntimeError(
+                "Gemini API key not configured. Set GEMINI_API_KEY in .env"
+            )
+
+        config = types.GenerateContentConfig(
+            temperature=temperature or settings.GEMINI_TEMPERATURE,
+            max_output_tokens=max_tokens or settings.GEMINI_MAX_OUTPUT_TOKENS,
+        )
+
+        if system_instruction:
+            config.system_instruction = system_instruction
+
+        try:
+            response = await asyncio.to_thread(
+                self.client.models.generate_content,
+                model=settings.GEMINI_MODEL,
+                contents=prompt,
+                config=config,
+            )
+            text = response.text
+            chunk_size = 50
+            for i in range(0, len(text), chunk_size):
+                yield text[i : i + chunk_size]
+                await asyncio.sleep(0.02)
+        except Exception as e:
+            logger.error(f"Gemini stream error: {e}")
+            raise RuntimeError(f"Gemini streaming failed: {str(e)}")
+
 
 gemini_client = GeminiClient()

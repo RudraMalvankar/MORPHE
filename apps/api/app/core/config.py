@@ -50,6 +50,9 @@ class Settings(BaseSettings):
     GEMINI_TEMPERATURE: float = 0.7
     GEMINI_MAX_OUTPUT_TOKENS: int = 8192
 
+    # Dev Mode — skips auth for local development
+    DEV_MODE: bool = False
+
     model_config = SettingsConfigDict(
         env_file=".env", env_file_encoding="utf-8", case_sensitive=True, extra="ignore"
     )

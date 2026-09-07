@@ -15,6 +15,47 @@ async function apiFetch(path: string, options?: RequestInit) {
   return res.json();
 }
 
+async function apiUpload(path: string, file: File) {
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch(API_BASE + path, { method: "POST", body: form });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error("API " + res.status + ": " + text);
+  }
+  return res.json();
+}
+
+function sseStream(path: string, body: any, onEvent: (event: any) => void) {
+  return fetch(API_BASE + path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  }).then(async (res) => {
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      throw new Error("API " + res.status + ": " + text);
+    }
+    const reader = res.body!.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() || "";
+      for (const line of lines) {
+        if (line.startsWith("data: ")) {
+          try {
+            onEvent(JSON.parse(line.slice(6)));
+          } catch { /* skip malformed */ }
+        }
+      }
+    }
+  });
+}
+
 export const api = {
   projects: {
     list: () => apiFetch("/api/v1/projects/"),
@@ -32,6 +73,19 @@ export const api = {
       apiFetch("/api/v1/generation/from-data", { method: "POST", body: JSON.stringify(data) }),
     convert: (data: any) =>
       apiFetch("/api/v1/generation/convert", { method: "POST", body: JSON.stringify(data) }),
+    stream: (data: any, onEvent: (event: any) => void) =>
+      sseStream("/api/v1/generation/generate/stream", data, onEvent),
+  },
+  upload: {
+    document: (file: File) => apiUpload("/api/v1/generation/upload", file),
+  },
+  nlp: {
+    analyze: (text: string) =>
+      fetch(API_BASE + "/api/v1/generation/analyze-text", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(text),
+      }).then((r) => r.json()),
   },
   export: {
     formats: () => apiFetch("/api/v1/export/formats"),

@@ -15,6 +15,56 @@ from app.modules.auth.repository import UserRepository
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/auth/login")
 
 
+async def get_dev_user() -> User:
+    """Dev mode user stub — no DB lookup, no auth required."""
+    return User(
+        id=uuid.UUID("00000000-0000-0000-0000-000000000001"),
+        email="dev@morphe.local",
+        username="dev_user",
+        hashed_password="",
+        role="admin",
+        is_active=True,
+    )
+
+
+async def get_current_user(
+    token: str = Depends(oauth2_scheme), db: AsyncSession = Depends(db_dependency)
+) -> User:
+    if settings.DEV_MODE:
+        return await get_dev_user()
+
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+    payload = decode_token(token)
+    if payload is None:
+        raise credentials_exception
+
+    user_id_str: Optional[str] = payload.get("sub")
+    token_type: Optional[str] = payload.get("type")
+
+    if user_id_str is None or token_type != "access":
+        raise credentials_exception
+
+    try:
+        user_uuid = uuid.UUID(user_id_str)
+    except ValueError:
+        raise credentials_exception
+
+    user_repo = UserRepository(db)
+    user = await user_repo.get_by_id(user_uuid)
+    if user is None:
+        raise credentials_exception
+
+    if not user.is_active:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Inactive user")
+
+    return user
+
+
 def create_access_token(subject: str, expires_delta: Optional[datetime.timedelta] = None) -> str:
     now_utc = datetime.datetime.now(datetime.timezone.utc)
     if expires_delta:
@@ -55,41 +105,6 @@ def decode_token(token: str) -> Optional[dict]:
         return payload
     except jwt.PyJWTError:
         return None
-
-
-async def get_current_user(
-    token: str = Depends(oauth2_scheme), db: AsyncSession = Depends(db_dependency)
-) -> User:
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-
-    payload = decode_token(token)
-    if payload is None:
-        raise credentials_exception
-
-    user_id_str: Optional[str] = payload.get("sub")
-    token_type: Optional[str] = payload.get("type")
-
-    if user_id_str is None or token_type != "access":
-        raise credentials_exception
-
-    try:
-        user_uuid = uuid.UUID(user_id_str)
-    except ValueError:
-        raise credentials_exception
-
-    user_repo = UserRepository(db)
-    user = await user_repo.get_by_id(user_uuid)
-    if user is None:
-        raise credentials_exception
-
-    if not user.is_active:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Inactive user")
-
-    return user
 
 
 class RoleChecker:

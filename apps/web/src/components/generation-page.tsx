@@ -1,330 +1,266 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import {
-  Sparkles, Send, FileText, Database, Loader2,
-  Copy, ChevronRight, ChevronLeft, CheckCircle
-} from "lucide-react";
+import { FileText, Sparkles, Loader2, Send, FileUp, ListChecks, ChevronRight, ChevronLeft } from "lucide-react";
 import { api } from "@/lib/api";
 
 const PAPER_TYPES = [
-  { value: "research", label: "Research Paper" },
-  { value: "review", label: "Review Paper" },
-  { value: "systematic_review", label: "Systematic Review" },
-  { value: "meta_analysis", label: "Meta-Analysis" },
-  { value: "case_study", label: "Case Study" },
-  { value: "position", label: "Position Paper" },
-  { value: "conference", label: "Conference Paper" },
-  { value: "technical_report", label: "Technical Report" },
-  { value: "thesis", label: "Thesis Chapter" },
-  { value: "white_paper", label: "White Paper" },
+  "original_research", "review", "meta_analysis", "case_study",
+  "short_communication", "technical_note", "perspective",
 ];
-
-const CITATION_STYLES = [
-  { value: "apa", label: "APA" },
-  { value: "mla", label: "MLA" },
-  { value: "chicago", label: "Chicago" },
-  { value: "ieee", label: "IEEE" },
-  { value: "harvard", label: "Harvard" },
-  { value: "vancouver", label: "Vancouver" },
-  { value: "ama", label: "AMA" },
-  { value: "acs", label: "ACS" },
-  { value: "turabian", label: "Turabian" },
+const DOMAINS = [
+  "Computer Science", "Physics", "Chemistry", "Biology", "Medicine",
+  "Mathematics", "Engineering", "Psychology", "Economics", "Sociology",
 ];
-
-type WizardStep = "mode" | "config" | "content" | "generate";
 
 export default function GenerationPage() {
-  const [step, setStep] = useState<WizardStep>("mode");
   const [mode, setMode] = useState<"scratch" | "content" | "data">("scratch");
-  const [paperType, setPaperType] = useState("research");
-  const [citationStyle, setCitationStyle] = useState("apa");
+  const [step, setStep] = useState(0);
   const [topic, setTopic] = useState("");
-  const [keyPoints, setKeyPoints] = useState("");
-  const [content, setContent] = useState("");
-  const [generating, setGenerating] = useState(false);
-  const [result, setResult] = useState<any>(null);
-  const [error, setError] = useState("");
+  const [keywords, setKeywords] = useState("");
+  const [paperType, setPaperType] = useState("original_research");
+  const [domain, setDomain] = useState("Computer Science");
+  const [userContent, setUserContent] = useState("");
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [events, setEvents] = useState<any[]>([]);
+  const [generatedPaper, setGeneratedPaper] = useState<any>(null);
+  const [uploadedFile, setUploadedFile] = useState<any>(null);
 
-  const steps: WizardStep[] = ["mode", "config", "content", "generate"];
-  const currentIdx = steps.indexOf(step);
-
-  const next = () => {
-    if (currentIdx < steps.length - 1) setStep(steps[currentIdx + 1]);
-  };
-  const prev = () => {
-    if (currentIdx > 0) setStep(steps[currentIdx - 1]);
-  };
-
-  const handleGenerate = async () => {
-    setGenerating(true);
-    setError("");
-    setResult(null);
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files?.[0]) return;
     try {
-      let data;
-      if (mode === "scratch") {
-        data = await api.generation.fromScratch({
-          topic,
-          paper_type: paperType,
-          citation_style: citationStyle,
-          key_points: keyPoints.split("\n").filter(Boolean),
-        });
-      } else if (mode === "content") {
-        data = await api.generation.fromContent({
-          content,
-          paper_type: paperType,
-          citation_style: citationStyle,
-          target_publisher: "ieee",
-        });
-      } else {
-        data = await api.generation.fromData({
-          topic,
-          paper_type: paperType,
-          citation_style: citationStyle,
-          data_description: content,
-        });
-      }
-      setResult(data);
-      setStep("generate");
-    } catch (e: any) {
-      setError(e.message || "Generation failed");
-    } finally {
-      setGenerating(false);
+      const result = await api.upload.document(e.target.files[0]);
+      setUploadedFile(result);
+    } catch (err: any) {
+      alert("Upload failed: " + err.message);
     }
   };
 
-  const canNext = () => {
-    if (step === "mode") return true;
-    if (step === "config") return topic.trim().length > 0;
-    if (step === "content") return content.trim().length > 0 || mode === "scratch";
-    return false;
+  const handleGenerate = async () => {
+    setIsGenerating(true);
+    setEvents([]);
+    setGeneratedPaper(null);
+    setStep(3);
+
+    const data: any = {
+      topic, keywords: keywords.split(",").map((k) => k.trim()).filter(Boolean),
+      paper_type: paperType, research_domain: domain, project_id: "dev-project",
+    };
+
+    try {
+      await api.generation.stream(data, (event) => {
+        setEvents((prev) => [...prev, event]);
+        if (event.type === "complete") {
+          setGeneratedPaper({
+            title: event.title,
+            keywords: event.keywords,
+            sections: event.sections,
+          });
+          setIsGenerating(false);
+        }
+        if (event.type === "error") {
+          setIsGenerating(false);
+        }
+      });
+    } catch (err: any) {
+      setEvents((prev) => [...prev, { type: "error", message: err.message }]);
+      setIsGenerating(false);
+    }
   };
 
-  return (
-    <div className="space-y-6 animate-in fade-in duration-300 max-w-5xl">
-      <div>
-        <h2 className="text-3xl font-bold tracking-tight flex items-center gap-2">
-          <Sparkles className="h-8 w-8 text-primary" />
-          AI Paper Generation
-        </h2>
-        <p className="text-muted-foreground text-sm mt-1">
-          Generate complete research papers powered by Google Gemini.
-        </p>
-      </div>
+  const sections = events.filter((e) => e.type === "section");
+  const steps = events.filter((e) => e.type === "step");
+  const titleEvent = events.find((e) => e.type === "title");
+  const keywordsEvent = events.find((e) => e.type === "keywords");
 
-      {/* Step Indicator */}
-      <div className="flex items-center gap-2">
-        {steps.map((s, i) => (
-          <div key={s} className="flex items-center gap-2">
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border ${
-              i < currentIdx ? "bg-primary text-primary-foreground border-primary" :
-              i === currentIdx ? "border-primary text-primary" :
-              "border-border text-muted-foreground"
-            }`}>
-              {i < currentIdx ? <CheckCircle className="h-4 w-4" /> : i + 1}
+  if (isGenerating || generatedPaper) {
+    return (
+      <div className="space-y-6 animate-in fade-in duration-300">
+        <div className="flex items-center justify-between">
+          <h2 className="text-3xl font-bold tracking-tight flex items-center gap-2">
+            <Sparkles className="h-8 w-8 text-primary" />
+            {isGenerating ? "Generating..." : "Generated Paper"}
+          </h2>
+          {isGenerating && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" /> Streaming...
             </div>
-            <span className={`text-xs ${i === currentIdx ? "text-foreground font-medium" : "text-muted-foreground"}`}>
-              {s === "mode" ? "Mode" : s === "config" ? "Config" : s === "content" ? "Content" : "Result"}
-            </span>
-            {i < steps.length - 1 && <div className="w-8 h-px bg-border" />}
+          )}
+        </div>
+
+        {titleEvent && (
+          <div className="bg-card border border-border rounded-xl p-6">
+            <h3 className="text-xl font-bold text-foreground">{titleEvent.title}</h3>
+            {keywordsEvent && (
+              <div className="flex flex-wrap gap-2 mt-3">
+                {keywordsEvent.keywords.map((k: string) => (
+                  <span key={k} className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">{k}</span>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="space-y-4">
+          {sections.map((sec, i) => (
+            <div key={i} className="bg-card border border-border rounded-xl p-6">
+              <h4 className="font-semibold text-sm text-primary uppercase mb-3">{sec.name}</h4>
+              <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">{sec.content}</p>
+            </div>
+          ))}
+          {isGenerating && steps.length > 0 && (
+            <div className="bg-card border border-border rounded-xl p-4 flex items-center gap-3">
+              <Loader2 className="h-4 w-4 animate-spin text-primary" />
+              <span className="text-sm text-muted-foreground">{steps[steps.length - 1]?.message}</span>
+            </div>
+          )}
+        </div>
+
+        {generatedPaper && (
+          <div className="flex gap-2">
+            <Button onClick={() => { setGeneratedPaper(null); setEvents([]); setStep(0); }} variant="outline">
+              Generate Another
+            </Button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  const stepTitles = ["Mode", "Configure", "Content", "Generate"];
+
+  return (
+    <div className="space-y-6 animate-in fade-in duration-300">
+      <h2 className="text-3xl font-bold tracking-tight flex items-center gap-2">
+        <FileText className="h-8 w-8 text-primary" /> Paper Generation
+      </h2>
+
+      <div className="flex items-center gap-2">
+        {stepTitles.map((t, i) => (
+          <div key={i} className="flex items-center gap-2">
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${
+              i <= step ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+            }`}>{i + 1}</div>
+            <span className={`text-xs ${i <= step ? "text-foreground" : "text-muted-foreground"}`}>{t}</span>
+            {i < stepTitles.length - 1 && <ChevronRight className="h-4 w-4 text-muted-foreground" />}
           </div>
         ))}
       </div>
 
-      {/* Step: Mode Selection */}
-      {step === "mode" && (
-        <div className="space-y-4">
-          <h3 className="font-semibold text-lg">Choose Generation Mode</h3>
+      {step === 0 && (
+        <div className="bg-card border border-border rounded-xl p-6 space-y-4">
+          <h3 className="font-semibold">Select Generation Mode</h3>
           <div className="grid gap-4 md:grid-cols-3">
             {[
-              { key: "scratch" as const, icon: Sparkles, title: "From Scratch", desc: "Start with just a topic. AI writes the entire paper." },
-              { key: "content" as const, icon: FileText, title: "From Content", desc: "Provide raw text/notes. AI structures and refines it." },
-              { key: "data" as const, icon: Database, title: "From Data", desc: "Upload CSV/data. AI generates analysis sections." },
-            ].map(({ key, icon: Icon, title, desc }) => (
-              <button
-                key={key}
-                onClick={() => { setMode(key); next(); }}
-                className={`p-6 rounded-xl border text-left transition-all hover:shadow-md ${
-                  mode === key
-                    ? "bg-primary/10 border-primary ring-1 ring-primary"
-                    : "bg-card border-border hover:border-primary/50"
-                }`}
-              >
-                <Icon className="h-8 w-8 text-primary mb-3" />
-                <h4 className="font-semibold text-foreground">{title}</h4>
-                <p className="text-sm text-muted-foreground mt-1">{desc}</p>
+              { key: "scratch" as const, label: "From Scratch", desc: "Start from a topic or keywords" },
+              { key: "content" as const, label: "From Content", desc: "Use existing notes or drafts" },
+              { key: "data" as const, label: "From Data", desc: "Generate from research data" },
+            ].map(({ key, label, desc }) => (
+              <button key={key} onClick={() => { setMode(key); setStep(1); }}
+                className={`p-4 rounded-lg border text-left transition-all ${
+                  mode === key ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"
+                }`}>
+                <span className="font-medium text-foreground">{label}</span>
+                <p className="text-xs text-muted-foreground mt-1">{desc}</p>
               </button>
             ))}
           </div>
         </div>
       )}
 
-      {/* Step: Config */}
-      {step === "config" && (
-        <div className="grid gap-6 lg:grid-cols-2">
-          <div className="bg-card border border-border rounded-xl p-6 space-y-4">
-            <h3 className="font-semibold text-lg border-b border-border pb-3">Paper Configuration</h3>
-            <div>
-              <label className="text-xs text-muted-foreground font-mono">Research Topic *</label>
-              <input
-                type="text"
-                value={topic}
-                onChange={(e) => setTopic(e.target.value)}
-                placeholder="e.g., Transformer architectures for NLP"
-                className="w-full mt-1 bg-background border border-border rounded-md px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground"
-              />
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground font-mono">Paper Type</label>
-              <select
-                value={paperType}
-                onChange={(e) => setPaperType(e.target.value)}
-                className="w-full mt-1 bg-background border border-border rounded-md px-3 py-2 text-sm text-foreground"
-              >
-                {PAPER_TYPES.map((t) => (
-                  <option key={t.value} value={t.value}>{t.label}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground font-mono">Citation Style</label>
-              <select
-                value={citationStyle}
-                onChange={(e) => setCitationStyle(e.target.value)}
-                className="w-full mt-1 bg-background border border-border rounded-md px-3 py-2 text-sm text-foreground"
-              >
-                {CITATION_STYLES.map((s) => (
-                  <option key={s.value} value={s.value}>{s.label}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-          <div className="bg-card border border-border rounded-xl p-6 space-y-4">
-            <h3 className="font-semibold text-lg border-b border-border pb-3">Key Points</h3>
-            <p className="text-xs text-muted-foreground">Optional: Add key points (one per line) to guide the generation.</p>
-            <textarea
-              value={keyPoints}
-              onChange={(e) => setKeyPoints(e.target.value)}
-              rows={8}
-              placeholder={"Attention mechanism is key\nSelf-supervised learning\nScalability challenges\nNovel architecture proposed"}
-              className="w-full bg-background border border-border rounded-md px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground font-mono"
-            />
-          </div>
-        </div>
-      )}
-
-      {/* Step: Content */}
-      {step === "content" && mode !== "scratch" && (
+      {step === 1 && (
         <div className="bg-card border border-border rounded-xl p-6 space-y-4">
-          <h3 className="font-semibold text-lg border-b border-border pb-3">
-            {mode === "content" ? "Raw Content" : "Data Description"}
-          </h3>
-          <textarea
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            rows={12}
-            placeholder={mode === "content"
-              ? "Paste your research notes, draft text, or raw content here..."
-              : "Describe your dataset: what columns, what analysis you need, sample data..."}
-            className="w-full bg-background border border-border rounded-md px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground"
-          />
+          <h3 className="font-semibold">Configure Paper</h3>
+          <div className="space-y-4">
+            <div>
+              <label className="text-xs text-muted-foreground font-mono mb-1 block">Topic / Title</label>
+              <input value={topic} onChange={(e) => setTopic(e.target.value)} placeholder="e.g. Attention Is All You Need"
+                className="w-full bg-background border border-border px-3 py-2 rounded-md text-sm text-foreground placeholder:text-muted-foreground" />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground font-mono mb-1 block">Keywords (comma separated)</label>
+              <input value={keywords} onChange={(e) => setKeywords(e.target.value)} placeholder="e.g. transformer, attention, NLP"
+                className="w-full bg-background border border-border px-3 py-2 rounded-md text-sm text-foreground placeholder:text-muted-foreground" />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs text-muted-foreground font-mono mb-1 block">Paper Type</label>
+                <select value={paperType} onChange={(e) => setPaperType(e.target.value)}
+                  className="w-full bg-background border border-border px-3 py-2 rounded-md text-sm text-foreground">
+                  {PAPER_TYPES.map((t) => <option key={t} value={t}>{t.replace(/_/g, " ")}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground font-mono mb-1 block">Domain</label>
+                <select value={domain} onChange={(e) => setDomain(e.target.value)}
+                  className="w-full bg-background border border-border px-3 py-2 rounded-md text-sm text-foreground">
+                  {DOMAINS.map((d) => <option key={d} value={d}>{d}</option>)}
+                </select>
+              </div>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setStep(0)}><ChevronLeft className="h-4 w-4 mr-1" /> Back</Button>
+            <Button onClick={() => setStep(mode === "content" ? 2 : 3)} disabled={!topic.trim()}>
+              {mode === "content" ? "Next" : "Generate"} <ChevronRight className="h-4 w-4 ml-1" />
+            </Button>
+          </div>
         </div>
       )}
 
-      {step === "content" && mode === "scratch" && (
-        <div className="bg-card border border-border rounded-xl p-6 text-center py-16">
-          <Sparkles className="h-12 w-12 mx-auto mb-4 text-primary opacity-50" />
-          <p className="text-muted-foreground">Ready to generate from scratch. Click Next to proceed.</p>
-        </div>
-      )}
-
-      {/* Step: Generate / Result */}
-      {step === "generate" && (
-        <div className="space-y-4">
-          {!result && (
-            <div className="bg-card border border-border rounded-xl p-6 text-center py-16">
-              {generating ? (
-                <>
-                  <Loader2 className="h-12 w-12 mx-auto mb-4 animate-spin text-primary" />
-                  <p className="text-foreground font-medium">Gemini is writing your paper...</p>
-                  <p className="text-xs text-muted-foreground mt-2">This may take 30-60 seconds</p>
-                </>
-              ) : (
-                <>
-                  <h3 className="font-semibold text-lg mb-2">Ready to Generate</h3>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Topic: <span className="text-foreground">{topic}</span> | Type: {paperType} | Style: {citationStyle.toUpperCase()}
-                  </p>
-                  <Button onClick={handleGenerate} size="lg">
-                    <Sparkles className="h-4 w-4 mr-2" /> Generate Paper
-                  </Button>
-                </>
-              )}
-              {error && (
-                <div className="mt-4 p-3 bg-rose-500/10 border border-rose-500/20 rounded-lg text-rose-400 text-sm text-left">
-                  {error}
+      {step === 2 && mode === "content" && (
+        <div className="bg-card border border-border rounded-xl p-6 space-y-4">
+          <h3 className="font-semibold">Provide Content</h3>
+          <div className="space-y-4">
+            <div>
+              <label className="text-xs text-muted-foreground font-mono mb-1 block">Upload Document (optional)</label>
+              <div className="border-2 border-dashed border-border rounded-lg p-8 text-center relative hover:border-primary/50 transition-colors">
+                <input type="file" onChange={handleUpload} accept=".txt,.md,.pdf,.docx,.tex,.csv,.json"
+                  className="absolute inset-0 opacity-0 cursor-pointer" />
+                <FileUp className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                <p className="text-sm text-muted-foreground">Drop a file or click to upload</p>
+              </div>
+              {uploadedFile && (
+                <div className="mt-2 bg-background border border-border rounded-lg p-3 text-sm">
+                  <span className="font-medium text-foreground">{uploadedFile.filename}</span>
+                  <span className="text-muted-foreground ml-2">({(uploadedFile.size / 1024).toFixed(1)} KB)</span>
+                  {uploadedFile.preview && (
+                    <pre className="mt-2 text-xs text-muted-foreground max-h-32 overflow-y-auto whitespace-pre-wrap">{uploadedFile.preview}</pre>
+                  )}
                 </div>
               )}
             </div>
-          )}
-
-          {result && (
-            <div className="bg-card border border-border rounded-xl p-6 space-y-4">
-              <div className="flex items-center justify-between border-b border-border pb-3">
-                <h3 className="font-semibold text-lg">Generated Paper</h3>
-                <Button size="sm" variant="outline" onClick={() => navigator.clipboard.writeText(JSON.stringify(result, null, 2))}>
-                  <Copy className="h-3 w-3 mr-1" /> Copy JSON
-                </Button>
-              </div>
-              <div className="space-y-4 max-h-[600px] overflow-y-auto">
-                {result.title && (
-                  <div>
-                    <span className="text-[10px] font-mono text-muted-foreground uppercase">Title</span>
-                    <h4 className="text-lg font-bold text-foreground">{result.title}</h4>
-                  </div>
-                )}
-                {result.abstract && (
-                  <div>
-                    <span className="text-[10px] font-mono text-muted-foreground uppercase">Abstract</span>
-                    <p className="text-sm text-muted-foreground leading-relaxed">{result.abstract}</p>
-                  </div>
-                )}
-                {result.sections?.map((s: any, i: number) => (
-                  <div key={i}>
-                    <span className="text-[10px] font-mono text-muted-foreground uppercase">Section {i + 1}</span>
-                    <h5 className="font-semibold text-sm text-foreground">{s.heading}</h5>
-                    <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">{s.content}</p>
-                  </div>
-                ))}
-                {result.references?.length > 0 && (
-                  <div>
-                    <span className="text-[10px] font-mono text-muted-foreground uppercase">References</span>
-                    <ol className="list-decimal list-inside text-xs text-muted-foreground space-y-1">
-                      {result.references.map((r: any, i: number) => (
-                        <li key={i}>{typeof r === "string" ? r : (r.authors || []).join(", ") + ". " + r.title + ". " + r.journal + ". " + r.year + "."}</li>
-                      ))}
-                    </ol>
-                  </div>
-                )}
-              </div>
-              <Button variant="outline" onClick={() => { setResult(null); setStep("mode"); }}>
-                Generate Another
-              </Button>
+            <div>
+              <label className="text-xs text-muted-foreground font-mono mb-1 block">Notes / Draft Content</label>
+              <textarea value={userContent} onChange={(e) => setUserContent(e.target.value)}
+                placeholder="Paste or type your existing content, notes, or draft here..."
+                rows={10}
+                className="w-full bg-background border border-border px-3 py-2 rounded-md text-sm text-foreground placeholder:text-muted-foreground font-mono" />
             </div>
-          )}
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setStep(1)}><ChevronLeft className="h-4 w-4 mr-1" /> Back</Button>
+            <Button onClick={() => setStep(3)}><Send className="h-4 w-4 mr-1" /> Generate</Button>
+          </div>
         </div>
       )}
 
-      {/* Navigation */}
-      {step !== "generate" && (
-        <div className="flex justify-between">
-          <Button variant="outline" onClick={prev} disabled={currentIdx === 0}>
-            <ChevronLeft className="h-4 w-4 mr-1" /> Back
-          </Button>
-          <Button onClick={next} disabled={!canNext()}>
-            Next <ChevronRight className="h-4 w-4 ml-1" />
-          </Button>
+      {step === 3 && !isGenerating && !generatedPaper && (
+        <div className="bg-card border border-border rounded-xl p-6 space-y-4">
+          <h3 className="font-semibold flex items-center gap-2"><ListChecks className="h-5 w-5 text-primary" /> Review & Generate</h3>
+          <div className="space-y-2 text-sm">
+            <div className="flex justify-between"><span className="text-muted-foreground">Topic</span><span className="text-foreground">{topic}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">Type</span><span className="text-foreground">{paperType.replace(/_/g, " ")}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">Domain</span><span className="text-foreground">{domain}</span></div>
+            {keywords && (
+              <div className="flex justify-between"><span className="text-muted-foreground">Keywords</span><span className="text-foreground">{keywords}</span></div>
+            )}
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setStep(mode === "content" ? 2 : 1)}><ChevronLeft className="h-4 w-4 mr-1" /> Back</Button>
+            <Button onClick={handleGenerate} className="bg-primary"><Sparkles className="h-4 w-4 mr-1" /> Start Generation</Button>
+          </div>
         </div>
       )}
     </div>

@@ -3,11 +3,12 @@
 import React, { useState, useEffect } from "react";
 import { useAppStore } from "@/store/use-app-store";
 import { Button } from "@/components/ui/button";
-import { FolderKanban, Plus, FileText, Upload, Sparkles, AlertCircle, CheckCircle, Database } from "lucide-react";
+import { FolderKanban, Plus, FileText, Upload, Sparkles, AlertCircle, CheckCircle, Database, Pencil } from "lucide-react";
 import { api } from "@/lib/api";
 import GenerationPage from "@/components/generation-page";
 import ExportPage from "@/components/export-page";
 import KnowledgeBasePage from "@/components/knowledge-page";
+import CDMEditor from "@/components/cdm-editor";
 
 interface Project {
   id: string;
@@ -61,6 +62,8 @@ export default function Home() {
 
   const [isProcessing, setIsProcessing] = useState(false);
   const [processSuccess, setProcessSuccess] = useState(false);
+  const [showCDMEditor, setShowCDMEditor] = useState(false);
+  const [nlpText, setNlpText] = useState("");
 
   const [nlpStats, setNlpStats] = useState<NlpStats>({
     word_count: 3420,
@@ -143,6 +146,10 @@ export default function Home() {
 
   if (!mounted) return null;
 
+  if (showCDMEditor && activeProject) {
+    return <CDMEditor projectId={activeProject} onBack={() => setShowCDMEditor(false)} />;
+  }
+
   if (activeTab === "workspaces") {
     return (
       <div className="space-y-8 animate-in fade-in duration-300">
@@ -186,7 +193,17 @@ export default function Home() {
               </div>
               <div className="flex items-center justify-between text-xs text-muted-foreground border-t border-border pt-4">
                 <span>Created: {proj.created_at}</span>
-                <span>{files[proj.id]?.length || 0} Files</span>
+                <div className="flex items-center gap-2">
+                  <span>{files[proj.id]?.length || 0} Files</span>
+                  {activeProject === proj.id && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setShowCDMEditor(true); }}
+                      className="flex items-center gap-1 text-primary hover:text-primary/80"
+                    >
+                      <Pencil className="h-3 w-3" /> Edit
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           ))}
@@ -259,20 +276,42 @@ export default function Home() {
       <div className="space-y-8 animate-in fade-in duration-300">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-3xl font-bold tracking-tight">Core NLP & Domain Dashboard</h2>
-            <p className="text-muted-foreground text-sm">Semantic insights, terminology catalogs, and structural verification.</p>
+            <h2 className="text-3xl font-bold tracking-tight">NLP & Document Analysis</h2>
+            <p className="text-muted-foreground text-sm">Paste text or upload a file for instant linguistic analysis.</p>
           </div>
-          {isProcessing && (
-            <div className="flex items-center gap-2 text-xs text-primary font-mono animate-pulse">
-              <Sparkles className="h-4 w-4" /> Analyzing document...
-            </div>
-          )}
         </div>
-        {processSuccess && (
-          <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-emerald-400 text-sm flex items-center gap-2">
-            <CheckCircle className="h-5 w-5" /> Pipeline ran successfully! Linguistic representations updated.
-          </div>
-        )}
+        <div className="bg-card border border-border rounded-xl p-6 space-y-4">
+          <h3 className="font-semibold flex items-center gap-2"><Sparkles className="h-4 w-4 text-primary" /> Analyze Text</h3>
+          <textarea
+            value={nlpText}
+            onChange={(e) => setNlpText(e.target.value)}
+            placeholder="Paste your document text here for analysis..."
+            rows={8}
+            className="w-full bg-background border border-border px-4 py-3 rounded-lg text-sm text-foreground placeholder:text-muted-foreground font-mono"
+          />
+          <Button
+            onClick={async () => {
+              if (!nlpText.trim()) return;
+              setIsProcessing(true);
+              try {
+                const result = await fetch(process.env.NEXT_PUBLIC_API_URL + "/api/v1/generation/analyze-text", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify(nlpText),
+                }).then((r) => r.json());
+                setNlpStats(result);
+                setEntities(result.entities || []);
+                setProcessSuccess(true);
+              } catch {
+                /* fallback */
+              }
+              setIsProcessing(false);
+            }}
+            disabled={isProcessing || !nlpText.trim()}
+          >
+            {isProcessing ? "Analyzing..." : "Run Analysis"}
+          </Button>
+        </div>
         <div className="grid gap-8 lg:grid-cols-3">
           <div className="bg-card border border-border p-6 rounded-xl space-y-4">
             <h3 className="font-semibold text-lg border-b border-border pb-3">Linguistic Statistics</h3>
@@ -298,6 +337,7 @@ export default function Home() {
           <div className="bg-card border border-border p-6 rounded-xl space-y-4">
             <h3 className="font-semibold text-lg border-b border-border pb-3">Named Entities</h3>
             <div className="flex flex-wrap gap-2 overflow-y-auto max-h-56">
+              {entities.length === 0 && <p className="text-xs text-muted-foreground">No entities found yet. Run analysis above.</p>}
               {entities.map((e, idx) => (
                 <div key={idx} className="flex items-center gap-2 px-3 py-1 bg-background border border-border rounded-full text-xs">
                   <span className="font-semibold text-foreground">{e.text}</span>
@@ -307,35 +347,12 @@ export default function Home() {
             </div>
           </div>
           <div className="bg-card border border-border p-6 rounded-xl space-y-4">
-            <h3 className="font-semibold text-lg border-b border-border pb-3">Domain Profiles</h3>
-            <div className="space-y-4 text-sm">
-              <div className="flex items-center justify-between bg-background p-3 rounded-lg border border-border">
-                <span className="text-muted-foreground">Academic Domain</span>
-                <span className="font-bold text-primary">{domainInfo.domain}</span>
-              </div>
-              <div className="flex items-center justify-between bg-background p-3 rounded-lg border border-border">
-                <span className="text-muted-foreground">Research Type</span>
-                <span className="font-bold text-foreground">{domainInfo.research_type}</span>
-              </div>
-              <div className="flex items-center justify-between bg-background p-3 rounded-lg border border-border">
-                <span className="text-muted-foreground">Citation Style</span>
-                <span className="font-bold text-foreground">{domainInfo.style}</span>
-              </div>
-              <div className="space-y-2 pt-2 border-t border-border">
-                <span className="text-xs text-muted-foreground font-mono">Structural Completeness (IMRaD):</span>
-                <div className="space-y-1 text-xs">
-                  {domainInfo.structure.present.map((sec, idx) => (
-                    <div key={idx} className="flex items-center gap-2 text-emerald-400">
-                      <CheckCircle className="h-3.5 w-3.5" /> Present: {sec}
-                    </div>
-                  ))}
-                  {domainInfo.structure.missing.map((sec, idx) => (
-                    <div key={idx} className="flex items-center gap-2 text-rose-400">
-                      <AlertCircle className="h-3.5 w-3.5" /> Missing: {sec}
-                    </div>
-                  ))}
-                </div>
-              </div>
+            <h3 className="font-semibold text-lg border-b border-border pb-3">Keywords</h3>
+            <div className="flex flex-wrap gap-2 overflow-y-auto max-h-56">
+              {(!nlpStats as any).keywords?.length && <p className="text-xs text-muted-foreground">No keywords found yet.</p>}
+              {((nlpStats as any).keywords || []).map((k: string, idx: number) => (
+                <span key={idx} className="px-3 py-1 bg-primary/10 text-primary text-xs rounded-full">{k}</span>
+              ))}
             </div>
           </div>
         </div>

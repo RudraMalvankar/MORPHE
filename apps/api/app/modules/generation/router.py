@@ -1,7 +1,11 @@
+import json
+import os
 import uuid
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile
+from fastapi.responses import StreamingResponse
 
+from app.core.config import settings
 from app.core.events import (
     GenerationCompletedEvent,
     GenerationStartedEvent,
@@ -220,3 +224,196 @@ async def generation_health():
         "status": "available" if gemini_client.is_available else "unavailable",
         "model": "gemini-2.0-flash" if gemini_client.is_available else None,
     }
+
+
+@router.post("/upload")
+async def upload_document(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+):
+    """Upload a document for analysis and content extraction."""
+    allowed = {".pdf", ".docx", ".doc", ".tex", ".latex", ".md", ".txt", ".csv", ".json"}
+    ext = os.path.splitext(file.filename or "")[1].lower()
+
+    if ext not in allowed:
+        raise HTTPException(status_code=400, detail=f"Unsupported file type: {ext}")
+
+    os.makedirs(settings.ORIGINAL_INPUTS_DIR, exist_ok=True)
+    save_path = os.path.join(settings.ORIGINAL_INPUTS_DIR, file.filename)
+
+    content = await file.read()
+    with open(save_path, "wb") as f:
+        f.write(content)
+
+    file_id = f"file-{uuid.uuid4().hex[:12]}"
+    file_size = len(content)
+
+    text_content = ""
+    if ext in {".txt", ".md", ".csv", ".json"}:
+        text_content = content.decode("utf-8", errors="ignore")
+
+    return {
+        "file_id": file_id,
+        "filename": file.filename,
+        "size": file_size,
+        "type": ext.lstrip("."),
+        "status": "uploaded",
+        "preview": (
+            text_content[:2000]
+            if text_content
+            else f"Binary file ({ext}) uploaded. Parse to extract content."
+        ),
+    }
+
+
+@router.post("/analyze-text")
+async def analyze_text(
+    text: str = "",
+    current_user: User = Depends(get_current_user),
+):
+    """Quick NLP analysis without DB — returns stats, entities, keywords."""
+    import re
+    from collections import Counter
+
+    words = re.findall(r"\b\w+\b", text.lower())
+    sentences = re.split(r"[.!?]+", text)
+    sentences = [s.strip() for s in sentences if s.strip()]
+
+    word_count = len(words)
+    sentence_count = len(sentences)
+    avg_sentence_length = round(word_count / max(sentence_count, 1), 1)
+    unique_words = len(set(words))
+    lexical_diversity = round(unique_words / max(word_count, 1), 3)
+
+    stopwords = {
+        "the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for",
+        "of", "with", "by", "from", "is", "are", "was", "were", "be", "been",
+        "being", "have", "has", "had", "do", "does", "did", "will", "would",
+        "could", "should", "may", "might", "can", "this", "that", "these",
+        "those", "it", "its", "not", "no", "if", "then", "than", "so",
+    }
+    content_words = [w for w in words if w not in stopwords and len(w) > 2]
+    keywords = [w for w, _ in Counter(content_words).most_common(15)]
+
+    email_pattern = r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}"
+    emails = re.findall(email_pattern, text)
+
+    doi_pattern = r"(?:doi[:\s]*|10\.\d{4,}/)[^\s]+"
+    dois = re.findall(doi_pattern, text)
+
+    url_pattern = r"https?://[^\s]+"
+    urls = re.findall(url_pattern, text)
+
+    org_keywords = ["university", "institute", "lab", "center", "department", "school"]
+    sentences_with_orgs = [s for s in sentences if any(kw in s.lower() for kw in org_keywords)]
+    orgs = [s.split(",")[0].strip() for s in sentences_with_orgs[:5]]
+
+    return {
+        "word_count": word_count,
+        "sentence_count": sentence_count,
+        "avg_sentence_length": avg_sentence_length,
+        "lexical_diversity": lexical_diversity,
+        "unique_words": unique_words,
+        "reading_time_mins": round(word_count / 200, 1),
+        "keywords": keywords,
+        "entities": (
+            [{"text": e, "type": "EMAIL"} for e in emails[:5]]
+            + [{"text": d, "type": "DOI"} for d in dois[:5]]
+            + [{"text": u, "type": "URL"} for u in urls[:5]]
+            + [{"text": o, "type": "ORGANIZATION"} for o in orgs]
+        ),
+    }
+
+
+@router.post("/generate/stream")
+async def generate_stream(
+    data: GenerateFromScratchRequest,
+    current_user: User = Depends(get_current_user),
+):
+    """Stream generated paper sections as Server-Sent Events."""
+    from app.modules.ai.client import gemini_client
+    from app.modules.ai.prompts import (
+        get_keywords_generation_prompt,
+        get_section_generation_prompt,
+        get_system_instruction,
+        get_title_generation_prompt,
+    )
+
+    if not gemini_client.is_available:
+        raise HTTPException(status_code=503, detail="Gemini API not configured.")
+
+    async def event_generator():
+        section_order = [
+            "abstract", "introduction", "methodology",
+            "results", "discussion", "conclusion",
+        ]
+
+        yield f"data: {json.dumps({'type': 'started', 'message': 'Generation started'})}\n\n"
+
+        try:
+            system_inst = get_system_instruction(data.paper_type)
+
+            yield f"data: {json.dumps({'type': 'step', 'message': 'Generating title'})}\n\n"
+            title_resp = await gemini_client.generate(
+                get_title_generation_prompt(
+                    data.topic, data.keywords, data.paper_type, data.research_domain
+                ),
+                system_instruction=system_inst,
+            )
+            titles = [t.strip() for t in title_resp.strip().split("\n") if t.strip()]
+            title = titles[0] if titles else data.topic
+            yield f"data: {json.dumps({'type': 'title', 'title': title})}\n\n"
+
+            yield f"data: {json.dumps({'type': 'step', 'message': 'Generating keywords'})}\n\n"
+            keywords_resp = await gemini_client.generate(
+                get_keywords_generation_prompt(title, data.paper_type, data.research_domain),
+                system_instruction=system_inst,
+            )
+            keywords = [k.strip() for k in keywords_resp.strip().split(",") if k.strip()]
+
+            yield f"data: {json.dumps({'type': 'keywords', 'keywords': keywords})}\n\n"
+
+            abstract_resp = await gemini_client.generate(
+                get_section_generation_prompt(
+                    "abstract", data.paper_type, title, data.keywords, ""
+                ),
+                system_instruction=system_inst,
+            )
+            abstract_event = {
+                "type": "section",
+                "name": "abstract",
+                "content": abstract_resp.strip(),
+            }
+            yield f"data: {json.dumps(abstract_event)}\n\n"
+
+            collected = {}
+            for section in section_order[1:]:
+                step_msg = f"Generating {section}"
+                yield f"data: {json.dumps({'type': 'step', 'message': step_msg})}\n\n"
+                resp = await gemini_client.generate(
+                    get_section_generation_prompt(
+                        section, data.paper_type, title, data.keywords, ""
+                    ),
+                    system_instruction=system_inst,
+                )
+                content = resp.strip()
+                collected[section] = content
+                sec_event = {"type": "section", "name": section, "content": content}
+                yield f"data: {json.dumps(sec_event)}\n\n"
+
+            complete_event = {
+                "type": "complete",
+                "title": title,
+                "keywords": keywords,
+                "sections": list(collected.keys()),
+            }
+            yield f"data: {json.dumps(complete_event)}\n\n"
+
+        except Exception as e:
+            yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
