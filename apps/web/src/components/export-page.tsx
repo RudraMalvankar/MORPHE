@@ -107,7 +107,8 @@ export default function ExportPage() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = "paper_" + selectedPublisher + extMap[selectedFormat] || ".txt";
+      const ext = extMap[selectedFormat] || ".txt";
+      a.download = "paper_" + selectedPublisher + ext;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -248,7 +249,9 @@ export default function ExportPage() {
             <div className="max-h-[500px] overflow-y-auto">
               {selectedFormat === "html" ? (
                 <div
-                  dangerouslySetInnerHTML={{ __html: preview }}
+                  dangerouslySetInnerHTML={{
+                    __html: preview.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, ""),
+                  }}
                   className="prose prose-sm dark:prose-invert max-w-none"
                 />
               ) : (
