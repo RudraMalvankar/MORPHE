@@ -128,20 +128,25 @@ export default function Home() {
     }
   };
 
-  const runAnalysis = (fileId: string) => {
+  const runAnalysis = async (fileId: string) => {
     setIsProcessing(true);
     setProcessSuccess(false);
-    setTimeout(() => {
-      setIsProcessing(false);
-      setProcessSuccess(true);
+    try {
       const pid = activeProject || "default";
-      setFiles((prev) => ({
-        ...prev,
-        [pid]: (prev[pid] || []).map((f) =>
-          f.id === fileId ? { ...f, status: "analyzed" } : f
-        ),
-      }));
-    }, 2000);
+      const file = (files[pid] || []).find((f) => f.id === fileId);
+      if (file) {
+        setFiles((prev) => ({
+          ...prev,
+          [pid]: prev[pid].map((f) =>
+            f.id === fileId ? { ...f, status: "analyzed" } : f
+          ),
+        }));
+      }
+      setProcessSuccess(true);
+    } catch {
+      /* analysis failed */
+    }
+    setIsProcessing(false);
   };
 
   if (!mounted) return null;
