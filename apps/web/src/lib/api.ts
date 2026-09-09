@@ -12,6 +12,13 @@ async function apiFetch(path: string, options?: RequestInit) {
     const text = await res.text().catch(() => "");
     throw new Error("API " + res.status + ": " + text);
   }
+  if (res.status === 204 || res.headers.get("content-length") === "0") {
+    return null;
+  }
+  const contentType = res.headers.get("content-type") || "";
+  if (!contentType.includes("application/json")) {
+    return res.text();
+  }
   return res.json();
 }
 
@@ -26,34 +33,54 @@ async function apiUpload(path: string, file: File) {
   return res.json();
 }
 
-function sseStream(path: string, body: any, onEvent: (event: any) => void) {
-  return fetch(API_BASE + path, {
+function sseStream(
+  path: string,
+  body: any,
+  onEvent: (event: any) => void
+): () => void {
+  const controller = new AbortController();
+
+  fetch(API_BASE + path, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
-  }).then(async (res) => {
-    if (!res.ok) {
-      const text = await res.text().catch(() => "");
-      throw new Error("API " + res.status + ": " + text);
-    }
-    const reader = res.body!.getReader();
-    const decoder = new TextDecoder();
-    let buffer = "";
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split("\n");
-      buffer = lines.pop() || "";
-      for (const line of lines) {
-        if (line.startsWith("data: ")) {
-          try {
-            onEvent(JSON.parse(line.slice(6)));
-          } catch { /* skip malformed */ }
+    signal: controller.signal,
+  })
+    .then(async (res) => {
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        throw new Error("API " + res.status + ": " + text);
+      }
+      const reader = res.body!.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            try {
+              onEvent(JSON.parse(line.slice(6)));
+            } catch { /* skip malformed */ }
+          }
         }
       }
-    }
-  });
+      if (buffer.startsWith("data: ")) {
+        try {
+          onEvent(JSON.parse(buffer.slice(6)));
+        } catch { /* skip malformed */ }
+      }
+    })
+    .catch((err) => {
+      if (err.name !== "AbortError") {
+        onEvent({ type: "error", message: err.message });
+      }
+    });
+
+  return () => controller.abort();
 }
 
 export const api = {
@@ -85,11 +112,10 @@ export const api = {
   },
   nlp: {
     analyze: (text: string) =>
-      fetch(API_BASE + "/api/v1/generation/analyze-text", {
+      apiFetch("/api/v1/generation/analyze-text", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(text),
-      }).then((r) => r.json()),
+      }),
   },
   search: {
     files: (q: string) =>

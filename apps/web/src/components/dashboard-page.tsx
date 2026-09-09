@@ -52,7 +52,8 @@ export default function DashboardPage() {
 
   const maxVal = (obj: Record<string, number>) => {
     const vals = Object.values(obj);
-    return vals.length > 0 ? Math.max.apply(null, vals) : 1;
+    const positive = vals.filter((v) => v > 0);
+    return positive.length > 0 ? Math.max.apply(null, positive) : 1;
   };
 
   if (loading) {

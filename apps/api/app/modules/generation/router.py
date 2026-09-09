@@ -328,8 +328,9 @@ async def upload_document(
     if ext not in allowed:
         raise HTTPException(status_code=400, detail=f"Unsupported file type: {ext}")
 
+    safe_name = f"{uuid.uuid4().hex[:12]}{ext}"
     os.makedirs(settings.ORIGINAL_INPUTS_DIR, exist_ok=True)
-    save_path = os.path.join(settings.ORIGINAL_INPUTS_DIR, file.filename)
+    save_path = os.path.join(settings.ORIGINAL_INPUTS_DIR, safe_name)
 
     content = await file.read()
     with open(save_path, "wb") as f:
@@ -456,7 +457,9 @@ async def generate_stream(
 
             yield f"data: {json.dumps({'type': 'step', 'message': 'Generating keywords'})}\n\n"
             keywords_resp = await gemini_client.generate(
-                get_keywords_generation_prompt(title, data.paper_type, data.research_domain),
+                get_keywords_generation_prompt(
+                    title, "", data.research_domain
+                ),
                 system_instruction=system_inst,
             )
             keywords = [k.strip() for k in keywords_resp.strip().split(",") if k.strip()]
@@ -465,7 +468,11 @@ async def generate_stream(
 
             abstract_resp = await gemini_client.generate(
                 get_section_generation_prompt(
-                    "abstract", data.paper_type, title, data.keywords, ""
+                    section_type="abstract",
+                    title=title,
+                    topic=data.topic,
+                    paper_type=data.paper_type,
+                    abstract="",
                 ),
                 system_instruction=system_inst,
             )
@@ -482,7 +489,11 @@ async def generate_stream(
                 yield f"data: {json.dumps({'type': 'step', 'message': step_msg})}\n\n"
                 resp = await gemini_client.generate(
                     get_section_generation_prompt(
-                        section, data.paper_type, title, data.keywords, ""
+                        section_type=section,
+                        title=title,
+                        topic=data.topic,
+                        paper_type=data.paper_type,
+                        abstract="",
                     ),
                     system_instruction=system_inst,
                 )

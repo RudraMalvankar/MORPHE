@@ -15,7 +15,8 @@ export default function AnalyticsPage() {
           api.generation.dashboard(),
           api.export.publishers().catch(() => []),
         ]);
-        setStats({ ...dashData, publishers: pubData });
+        const pubList = Array.isArray(pubData) ? pubData : [];
+        setStats({ ...dashData, publishers: pubList });
       } catch {
         setStats(null);
       }
@@ -26,7 +27,8 @@ export default function AnalyticsPage() {
 
   const maxVal = (obj: Record<string, number>) => {
     const vals = Object.values(obj);
-    return vals.length > 0 ? Math.max.apply(null, vals) : 1;
+    const positive = vals.filter((v) => v > 0);
+    return positive.length > 0 ? Math.max.apply(null, positive) : 1;
   };
 
   if (loading) {

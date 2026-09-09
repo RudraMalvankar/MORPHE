@@ -20,8 +20,8 @@ async def get_dev_user() -> User:
     return User(
         id=uuid.UUID("00000000-0000-0000-0000-000000000001"),
         email="dev@morphe.local",
-        username="dev_user",
-        hashed_password="",
+        full_name="Dev User",
+        password_hash="",
         role="admin",
         is_active=True,
     )
