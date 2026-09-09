@@ -12,6 +12,8 @@ import GenerationPage from "@/components/generation-page";
 import ExportPage from "@/components/export-page";
 import KnowledgeBasePage from "@/components/knowledge-page";
 import CDMEditor from "@/components/cdm-editor";
+import DashboardPage from "@/components/dashboard-page";
+import AnalyticsPage from "@/components/analytics-page";
 
 interface Project {
   id: string;
@@ -440,9 +442,11 @@ export default function Home() {
     );
   }
 
+  if (activeTab === "dashboard") return <DashboardPage />;
   if (activeTab === "generation") return <GenerationPage />;
   if (activeTab === "export") return <ExportPage />;
   if (activeTab === "knowledge") return <KnowledgeBasePage />;
+  if (activeTab === "analytics") return <AnalyticsPage />;
 
   return (
     <div className="space-y-6 max-w-xl animate-in fade-in duration-300">

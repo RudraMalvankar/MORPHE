@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useAppStore } from "@/store/use-app-store";
 import {
   FileText, Cpu, Settings, FolderKanban,
-  Sparkles, Download, BookOpen
+  Sparkles, Download, BookOpen, LayoutDashboard, BarChart3,
 } from "lucide-react";
 
 export function NavShell({ children }: { children: React.ReactNode }) {
@@ -47,6 +47,10 @@ export function NavShell({ children }: { children: React.ReactNode }) {
       <div className="flex flex-1 overflow-hidden">
         <aside className="w-64 border-r border-border bg-card p-4 flex flex-col justify-between">
           <nav className="space-y-1">
+            <button onClick={() => setActiveTab("dashboard")} className={getLinkClass("dashboard")}>
+              <LayoutDashboard className="h-4 w-4" />
+              Dashboard
+            </button>
             <button onClick={() => setActiveTab("workspaces")} className={getLinkClass("workspaces")}>
               <FolderKanban className="h-4 w-4" />
               Workspaces
@@ -73,6 +77,10 @@ export function NavShell({ children }: { children: React.ReactNode }) {
             <button onClick={() => setActiveTab("knowledge")} className={getLinkClass("knowledge")}>
               <BookOpen className="h-4 w-4" />
               Knowledge Base
+            </button>
+            <button onClick={() => setActiveTab("analytics")} className={getLinkClass("analytics")}>
+              <BarChart3 className="h-4 w-4" />
+              Analytics
             </button>
           </nav>
 

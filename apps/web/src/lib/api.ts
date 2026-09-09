@@ -78,6 +78,7 @@ export const api = {
       apiFetch("/api/v1/generation/convert", { method: "POST", body: JSON.stringify(data) }),
     stream: (data: any, onEvent: (event: any) => void) =>
       sseStream("/api/v1/generation/generate/stream", data, onEvent),
+    dashboard: () => apiFetch("/api/v1/generation/dashboard"),
   },
   upload: {
     document: (file: File) => apiUpload("/api/v1/generation/upload", file),
@@ -89,6 +90,10 @@ export const api = {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(text),
       }).then((r) => r.json()),
+  },
+  search: {
+    files: (q: string) =>
+      apiFetch("/api/v1/generation/search?q=" + encodeURIComponent(q)),
   },
   export: {
     formats: () => apiFetch("/api/v1/export/formats"),

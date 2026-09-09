@@ -234,31 +234,86 @@ async def dashboard_stats(
     import os
 
     from app.modules.ai.client import gemini_client
+    from app.modules.plugins.v1.registry import list_plugins
 
     storage_dir = settings.ORIGINAL_INPUTS_DIR
     file_count = 0
+    file_types: dict[str, int] = {}
     if os.path.exists(storage_dir):
-        file_count = len([
-            f for f in os.listdir(storage_dir)
-            if os.path.isfile(os.path.join(storage_dir, f))
-        ])
+        for f in os.listdir(storage_dir):
+            fp = os.path.join(storage_dir, f)
+            if os.path.isfile(fp):
+                file_count += 1
+                ext = os.path.splitext(f)[1].lower()
+                file_types[ext] = file_types.get(ext, 0) + 1
 
     export_dir = "exports"
     export_count = 0
+    export_types: dict[str, int] = {}
     if os.path.exists(export_dir):
-        export_count = len([
-            f for f in os.listdir(export_dir)
-            if os.path.isfile(os.path.join(export_dir, f))
-        ])
+        for f in os.listdir(export_dir):
+            fp = os.path.join(export_dir, f)
+            if os.path.isfile(fp):
+                export_count += 1
+                ext = os.path.splitext(f)[1].lower()
+                export_types[ext] = export_types.get(ext, 0) + 1
+
+    storage_size = 0
+    if os.path.exists(storage_dir):
+        for f in os.listdir(storage_dir):
+            fp = os.path.join(storage_dir, f)
+            if os.path.isfile(fp):
+                storage_size += os.path.getsize(fp)
+
+    plugins = list_plugins()
 
     return {
         "total_files": file_count,
         "total_exports": export_count,
+        "total_publishers": len(plugins),
+        "file_types": file_types,
+        "export_types": export_types,
+        "storage_size_bytes": storage_size,
         "gemini_status": (
             "available" if gemini_client.is_available else "unavailable"
         ),
         "dev_mode": settings.DEV_MODE,
     }
+
+
+@router.get("/search")
+async def search_files(
+    q: str = "",
+    current_user: User = Depends(get_current_user),
+):
+    """Search uploaded files by name."""
+    import os
+
+    storage_dir = settings.ORIGINAL_INPUTS_DIR
+    results = []
+    if os.path.exists(storage_dir) and q:
+        for f in os.listdir(storage_dir):
+            if q.lower() in f.lower():
+                fp = os.path.join(storage_dir, f)
+                results.append({
+                    "filename": f,
+                    "size": os.path.getsize(fp),
+                    "type": os.path.splitext(f)[1].lower(),
+                })
+
+    export_dir = "exports"
+    if os.path.exists(export_dir) and q:
+        for f in os.listdir(export_dir):
+            if q.lower() in f.lower():
+                fp = os.path.join(export_dir, f)
+                results.append({
+                    "filename": f,
+                    "size": os.path.getsize(fp),
+                    "type": os.path.splitext(f)[1].lower(),
+                    "is_export": True,
+                })
+
+    return {"query": q, "results": results[:20], "total": len(results)}
 
 
 @router.post("/upload")
