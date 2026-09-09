@@ -1,26 +1,26 @@
 import { create } from "zustand";
 
+type Tab =
+  | "dashboard"
+  | "workspaces"
+  | "documents"
+  | "nlp"
+  | "generation"
+  | "export"
+  | "knowledge"
+  | "analytics"
+  | "settings";
+
 interface AppState {
   activeProject: string | null;
-  selectedPublisher: string;
-  activeTab: string;
+  activeTab: Tab;
   setActiveProject: (id: string | null) => void;
-  setSelectedPublisher: (publisher: string) => void;
-  setActiveTab: (tab: string) => void;
+  setActiveTab: (tab: Tab) => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
   activeProject: null,
-  selectedPublisher: "ieee",
-  activeTab: "workspaces",
-  setActiveProject: (id) => {
-    console.log("ZUSTAND: setActiveProject called with:", id);
-    set({ activeProject: id });
-  },
-  setSelectedPublisher: (publisher) => set({ selectedPublisher: publisher }),
-  setActiveTab: (tab) => {
-    console.log("ZUSTAND: setActiveTab called with:", tab);
-    set({ activeTab: tab });
-  },
+  activeTab: "dashboard",
+  setActiveProject: (id) => set({ activeProject: id }),
+  setActiveTab: (tab) => set({ activeTab: tab }),
 }));
-
