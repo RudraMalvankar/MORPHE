@@ -33,10 +33,12 @@ export default function GenerationPage() {
   const [uploadedFile, setUploadedFile] = useState<any>(null);
   const [streamError, setStreamError] = useState("");
   const abortRef = useRef<AbortController | null>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     return () => {
       abortRef.current?.abort();
+      if (timerRef.current) clearTimeout(timerRef.current);
     };
   }, []);
 
@@ -57,6 +59,13 @@ export default function GenerationPage() {
     setStreamError("");
     setStep(3);
 
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => {
+      setStreamError("Generation timed out after 120 seconds");
+      setIsGenerating(false);
+      abortRef.current?.abort();
+    }, 120000);
+
     const data: any = {
       topic,
       keywords: keywords.split(",").map((k) => k.trim()).filter(Boolean),
@@ -75,6 +84,7 @@ export default function GenerationPage() {
       await api.generation.stream(data, (event) => {
         setEvents((prev) => [...prev, event]);
         if (event.type === "complete") {
+          if (timerRef.current) clearTimeout(timerRef.current);
           setGeneratedPaper({
             title: event.title,
             keywords: event.keywords,
@@ -83,11 +93,13 @@ export default function GenerationPage() {
           setIsGenerating(false);
         }
         if (event.type === "error") {
+          if (timerRef.current) clearTimeout(timerRef.current);
           setStreamError(event.message || "Generation failed");
           setIsGenerating(false);
         }
       });
     } catch (err: any) {
+      if (timerRef.current) clearTimeout(timerRef.current);
       setStreamError(err.message || "Connection failed");
       setEvents((prev) => [...prev, { type: "error", message: err.message }]);
       setIsGenerating(false);
