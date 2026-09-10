@@ -67,6 +67,7 @@ export default function Home() {
     lexical_diversity: 0, reading_time_mins: 0,
   });
   const [entities, setEntities] = useState<Entity[]>([]);
+  const [nlpError, setNlpError] = useState<string | null>(null);
 
   const loadProjects = useCallback(async () => {
     setLoadingProjects(true);
@@ -355,21 +356,15 @@ export default function Home() {
             onClick={async () => {
               if (!nlpText.trim()) return;
               setIsProcessing(true);
+              setNlpError(null);
               try {
-                const result = await fetch(
-                  (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000") +
-                    "/api/v1/generation/analyze-text",
-                  {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(nlpText),
-                  }
-                ).then((r) => r.json());
+                const result = await api.nlp.analyze(nlpText);
                 setNlpStats(result);
                 setEntities(result.entities || []);
                 setProcessSuccess(true);
-              } catch {
-                /* fallback */
+              } catch (err: any) {
+                setNlpError(err?.message || "Analysis failed");
+                setProcessSuccess(false);
               }
               setIsProcessing(false);
             }}
@@ -377,6 +372,11 @@ export default function Home() {
           >
             {isProcessing ? "Analyzing..." : "Run Analysis"}
           </Button>
+          {nlpError && (
+            <div className="text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-lg px-4 py-2">
+              {nlpError}
+            </div>
+          )}
         </div>
         <div className="grid gap-8 lg:grid-cols-3">
           <div className="bg-card border border-border p-6 rounded-xl space-y-4">
