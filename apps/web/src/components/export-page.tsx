@@ -248,11 +248,11 @@ export default function ExportPage() {
           {preview ? (
             <div className="max-h-[500px] overflow-y-auto">
               {selectedFormat === "html" ? (
-                <div
-                  dangerouslySetInnerHTML={{
-                    __html: preview.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, ""),
-                  }}
-                  className="prose prose-sm dark:prose-invert max-w-none"
+                <iframe
+                  srcDoc={preview}
+                  sandbox="allow-same-origin"
+                  className="w-full min-h-[400px] border border-border rounded-lg bg-white"
+                  title="HTML Preview"
                 />
               ) : (
                 <pre className="text-xs text-muted-foreground font-mono whitespace-pre-wrap bg-background border border-border rounded-lg p-4">
