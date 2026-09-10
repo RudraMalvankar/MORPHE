@@ -17,9 +17,15 @@ export default function KnowledgeBasePage() {
 
   useEffect(() => {
     api.knowledge.stats().then(setStats).catch(() => {});
-    api.knowledge.publishers().then(setPublishers).catch(() => {});
-    api.knowledge.citations().then(setCitationStyles).catch(() => {});
-    api.knowledge.journals().then(setJournals).catch(() => {});
+    api.knowledge.publishers().then((data) => {
+      setPublishers(typeof data === "object" && data !== null && !Array.isArray(data) ? data : {});
+    }).catch(() => {});
+    api.knowledge.citations().then((data) => {
+      setCitationStyles(typeof data === "object" && data !== null && !Array.isArray(data) ? data : {});
+    }).catch(() => {});
+    api.knowledge.journals().then((data) => {
+      setJournals(Array.isArray(data) ? data : []);
+    }).catch(() => {});
   }, []);
 
   const handleSearch = async () => {
