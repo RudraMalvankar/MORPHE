@@ -32,12 +32,12 @@ export default function GenerationPage() {
   const [generatedPaper, setGeneratedPaper] = useState<any>(null);
   const [uploadedFile, setUploadedFile] = useState<any>(null);
   const [streamError, setStreamError] = useState("");
-  const abortRef = useRef<AbortController | null>(null);
+  const abortRef = useRef<(() => void) | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     return () => {
-      abortRef.current?.abort();
+      abortRef.current?.();
       if (timerRef.current) clearTimeout(timerRef.current);
     };
   }, []);
@@ -63,7 +63,7 @@ export default function GenerationPage() {
     timerRef.current = setTimeout(() => {
       setStreamError("Generation timed out after 120 seconds");
       setIsGenerating(false);
-      abortRef.current?.abort();
+      abortRef.current?.();
     }, 120000);
 
     const data: any = {
@@ -81,7 +81,7 @@ export default function GenerationPage() {
     }
 
     try {
-      await api.generation.stream(data, (event) => {
+      abortRef.current = api.generation.stream(data, (event) => {
         setEvents((prev) => [...prev, event]);
         if (event.type === "complete") {
           if (timerRef.current) clearTimeout(timerRef.current);
