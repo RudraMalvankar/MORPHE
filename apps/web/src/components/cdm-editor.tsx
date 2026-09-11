@@ -41,6 +41,7 @@ export default function CDMEditor({ projectId, onBack }: { projectId: string; on
   const [activeSection, setActiveSection] = useState(0);
   const [previewMode, setPreviewMode] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [aiSuggestion, setAiSuggestion] = useState("");
   const [isRefining, setIsRefining] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -58,14 +59,15 @@ export default function CDMEditor({ projectId, onBack }: { projectId: string; on
   };
 
   const handleSave = async () => {
-    setSaving(true);
+    setSaveError(null);
     try {
       await api.cdm.update(doc.version_id, doc);
       setHasUnsavedChanges(false);
-    } catch {
-      /* save failed but we show saved state briefly */
+      setSaving(true);
+      setTimeout(() => setSaving(false), 800);
+    } catch (err: any) {
+      setSaveError(err?.message || "Save failed");
     }
-    setTimeout(() => setSaving(false), 800);
   };
 
   const handleRefine = async () => {
@@ -138,6 +140,9 @@ export default function CDMEditor({ projectId, onBack }: { projectId: string; on
             )}
             {saving ? "Saved" : "Save"}
           </Button>
+          {saveError && (
+            <span className="text-xs text-destructive">{saveError}</span>
+          )}
         </div>
       </div>
 
