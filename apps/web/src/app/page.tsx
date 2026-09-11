@@ -113,8 +113,10 @@ export default function Home() {
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files?.[0]) return;
+    const file = e.target.files[0];
+    e.target.value = "";
     try {
-      const result = await api.upload.document(e.target.files[0]);
+      const result = await api.upload.document(file);
       const newFile: FileMetadata = {
         id: result.file_id,
         filename: result.filename,
