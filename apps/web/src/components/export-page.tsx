@@ -112,7 +112,7 @@ export default function ExportPage() {
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      setTimeout(() => URL.revokeObjectURL(url), 100);
     } catch (err: any) {
       alert("Download failed: " + err.message);
     }
