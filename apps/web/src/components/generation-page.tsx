@@ -44,8 +44,10 @@ export default function GenerationPage() {
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files?.[0]) return;
+    const file = e.target.files[0];
+    e.target.value = "";
     try {
-      const result = await api.upload.document(e.target.files[0]);
+      const result = await api.upload.document(file);
       setUploadedFile(result);
     } catch (err: any) {
       alert("Upload failed: " + err.message);
