@@ -51,7 +51,10 @@ function sseStream(
         const text = await res.text().catch(() => "");
         throw new Error("API " + res.status + ": " + text);
       }
-      const reader = res.body!.getReader();
+      const reader = res.body?.getReader();
+      if (!reader) {
+        throw new Error("Response body is null");
+      }
       const decoder = new TextDecoder();
       let buffer = "";
       while (true) {
