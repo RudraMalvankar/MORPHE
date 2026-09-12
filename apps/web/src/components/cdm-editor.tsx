@@ -75,22 +75,15 @@ export default function CDMEditor({ projectId, onBack }: { projectId: string; on
     setIsRefining(true);
     setAiSuggestion("");
     try {
-      const base = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-      const res = await fetch(base + "/api/v1/generation/refine", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          section_type: section.type,
-          current_content: section.content,
-          paper_type: "original_research",
-          domain: "General",
-        }),
+      const result = await api.generation.refine({
+        section_type: section.type,
+        current_content: section.content,
+        paper_type: "original_research",
+        domain: "General",
       });
-      if (!res.ok) throw new Error("Refine failed");
-      const result = await res.json();
       setAiSuggestion(result.refined_content || "No refinement available.");
-    } catch {
-      setAiSuggestion("Refinement unavailable — check API connection.");
+    } catch (err: any) {
+      setAiSuggestion(err?.message || "Refinement unavailable");
     }
     setIsRefining(false);
   };
