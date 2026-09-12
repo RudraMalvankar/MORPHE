@@ -108,6 +108,8 @@ export const api = {
       apiFetch("/api/v1/generation/convert", { method: "POST", body: JSON.stringify(data) }),
     stream: (data: any, onEvent: (event: any) => void) =>
       sseStream("/api/v1/generation/generate/stream", data, onEvent),
+    refine: (data: any) =>
+      apiFetch("/api/v1/generation/refine", { method: "POST", body: JSON.stringify(data) }),
     dashboard: () => apiFetch("/api/v1/generation/dashboard"),
   },
   upload: {
