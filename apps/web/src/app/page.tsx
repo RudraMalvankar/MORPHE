@@ -381,6 +381,11 @@ export default function Home() {
               {nlpError}
             </div>
           )}
+          {processSuccess && !nlpError && (
+            <div className="text-sm text-green-600 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg px-4 py-2">
+              Analysis completed successfully
+            </div>
+          )}
         </div>
         <div className="grid gap-8 lg:grid-cols-3">
           <div className="bg-card border border-border p-6 rounded-xl space-y-4">
