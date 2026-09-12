@@ -59,7 +59,8 @@ export default function Home() {
   const [files, setFiles] = useState<Record<string, FileMetadata[]>>({});
   const [showCDMEditor, setShowCDMEditor] = useState(false);
   const [nlpText, setNlpText] = useState("");
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [isAnalyzingFile, setIsAnalyzingFile] = useState(false);
+  const [isAnalyzingNlp, setIsAnalyzingNlp] = useState(false);
   const [processSuccess, setProcessSuccess] = useState(false);
 
   const [nlpStats, setNlpStats] = useState<NlpStats>({
@@ -132,12 +133,13 @@ export default function Home() {
   };
 
   const runAnalysis = async (fileId: string) => {
-    setIsProcessing(true);
+    setIsAnalyzingFile(true);
     setProcessSuccess(false);
     try {
       const pid = activeProject || "default";
       const file = (files[pid] || []).find((f) => f.id === fileId);
       if (file) {
+        await api.analysis.analyze({ file_id: fileId, filename: file.filename });
         setFiles((prev) => ({
           ...prev,
           [pid]: prev[pid].map((f) =>
@@ -147,9 +149,9 @@ export default function Home() {
       }
       setProcessSuccess(true);
     } catch {
-      /* analysis failed */
+      setProcessSuccess(false);
     }
-    setIsProcessing(false);
+    setIsAnalyzingFile(false);
   };
 
   if (!mounted) return null;
@@ -318,9 +320,9 @@ export default function Home() {
                           size="sm"
                           variant="outline"
                           onClick={() => runAnalysis(f.id)}
-                          disabled={isProcessing}
+                          disabled={isAnalyzingFile}
                         >
-                          {isProcessing ? "Processing..." : "Analyze"}
+                          {isAnalyzingFile ? "Processing..." : "Analyze"}
                         </Button>
                       </div>
                     </div>
@@ -357,7 +359,7 @@ export default function Home() {
           <Button
             onClick={async () => {
               if (!nlpText.trim()) return;
-              setIsProcessing(true);
+              setIsAnalyzingNlp(true);
               setNlpError(null);
               try {
                 const result = await api.nlp.analyze(nlpText);
@@ -368,11 +370,11 @@ export default function Home() {
                 setNlpError(err?.message || "Analysis failed");
                 setProcessSuccess(false);
               }
-              setIsProcessing(false);
+              setIsAnalyzingNlp(false);
             }}
-            disabled={isProcessing || !nlpText.trim()}
+            disabled={isAnalyzingNlp || !nlpText.trim()}
           >
-            {isProcessing ? "Analyzing..." : "Run Analysis"}
+            {isAnalyzingNlp ? "Analyzing..." : "Run Analysis"}
           </Button>
           {nlpError && (
             <div className="text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-lg px-4 py-2">
