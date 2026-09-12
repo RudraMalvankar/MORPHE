@@ -112,18 +112,28 @@ export default function Home() {
     }
   };
 
+  const computeChecksum = async (file: File): Promise<string> => {
+    const buffer = await file.arrayBuffer();
+    const hashBuffer = await crypto.subtle.digest("SHA-256", buffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return "sha256_" + hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+  };
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files?.[0]) return;
     const file = e.target.files[0];
     e.target.value = "";
     try {
-      const result = await api.upload.document(file);
+      const [result, checksum] = await Promise.all([
+        api.upload.document(file),
+        computeChecksum(file),
+      ]);
       const newFile: FileMetadata = {
         id: result.file_id,
         filename: result.filename,
         size: result.size,
         status: "uploaded",
-        checksum: "sha256_" + Math.random().toString(36).substring(7),
+        checksum,
       };
       const pid = activeProject || "default";
       setFiles((prev) => ({ ...prev, [pid]: [...(prev[pid] || []), newFile] }));
